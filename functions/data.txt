@@ -1,0 +1,18 @@
+create_data <- function(n, p, sig_p, d){
+  n_target <- n %/% 2
+  n_control <- n - n_target
+  in_order <- c(rep(1, n_target), rep(0, n_control))
+  Y <- sample(in_order, size = n, replace = FALSE)
+  
+  
+  X <- mvtnorm::rmvnorm(n, rep(0, p)) 
+  
+  significant_features <- sample(1:p, sig_p, replace = FALSE)
+  
+  X[, significant_features] <- X[, significant_features] + d
+  
+  XY <- as_tibble(X, .name_repair = "unique") %>%
+    add_column(Y)
+
+  list(X=X, Y=Y, XY=XY, sig_features = significant_features)
+}

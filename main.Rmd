@@ -1,0 +1,40 @@
+---
+title: "Thesis draft"
+author: "Steven Wallaert"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::pdf_document2:
+    number_sections: yes
+    toc: yes
+---
+
+\newpage
+
+```{r, child="00-abstract.Rmd"}
+
+```
+
+\newpage
+
+```{r, child="01-introduction.Rmd"}
+
+```
+
+\newpage
+
+```{r, child="02-method.Rmd"}
+
+```
+
+\newpage
+
+```{r, child="03-results.Rmd"}
+
+```
+
+\newpage
+
+```{r, child="04-discussion.Rmd"}
+
+```
+

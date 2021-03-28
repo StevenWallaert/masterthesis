@@ -1,0 +1,29 @@
+---
+title: "Abstract"
+author: "Steven Wallaert"
+date: "27-10-2020"
+output: 
+  bookdown::pdf_document2:
+---
+
+```{r setup-abstract, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Abstract {-}
+
+
+## Introduction
+
+As we currently reside in the era of big data, artificial intelligence and machine learning methods are on a rising tide. Interest in these methods are ever increasing since constrains in terms of computing power, storage capacity and connectivity are less of a concern. However, in certain technological settings data gathering is still limited in sample size due to high costs and limited resources. More specifically, in early drug development research high throughput techniques such as .... and .... are often used in small-sized experiments. The high dimensional data sets produced by these experiments often include tens of thousands of features and only 10 to 50 observations. Researchers in this field hope they can exploit the power of machine learning and AI to make more and better discoveries that would eventually lead to new and better drugs. Yet, since their main application is in situations where data sets consist of thousands or even millions of observations and only a fraction of features, little is known about how these ML techniques empirically perform. As such, it is unclear how these data sets in early drug discovery are best approached.
+
+## Objectives
+
+1. Gain insight in how researchers within this field analyzed these kinds of data in the recent years.
+2. Perform a simulation study comparing the most relevant methods in varying realistic conditions.
+3. Formulate clear data analysis guidelines
+4. Exemplify by means of a data analysis of real data
+
+## Methods
+
+In order to attain objective 1 a systematic review was planned and conducted following [@simulations_tutorial]

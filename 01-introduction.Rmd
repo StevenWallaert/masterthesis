@@ -1,0 +1,33 @@
+---
+title: "Introduction"
+author: "Steven Wallaert"
+date: "27-10-2020"
+output: 
+  bookdown::pdf_document2:
+---
+
+```{r setup-intro, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Artificial intelligence (AI) and machine learning (ML) techniques are gaining popularity because of the successes booked by the application of these techniques in the last decades (e.g. **EXAMPLES HERE**). Scientists from various fields believe in the power of these methods and thus want to apply them to their own fields of study, carrying high hopes this will result in more discoveries in less time. AI and ML are increasingly effective not only because of the continuing development of new and better algorithms but mainly because of advances in compute power and the ever increasing amounts of data that can be fed into these machine learning models (**citation**). 
+Indeed, a recent study showed empirically that model specification gets less important as training sets take on extreme proportions, suggesting that *"the scientific community should perhaps focus more on data curation than on algorithm development"*(**citation, see hands on machine learning**) . However, even though high-throughput technologies such as **single cell sequencing** or **EXAMPLE** deliver huge amounts of information, knowledge extraction from these information sources still remains a difficult task. The data these technologies produce are typically high dimensional, i.e. data where the number of features exceeds the number of instances. This is often denoted as p >> n (where p is the number of independent variables or features and n is the number of samples or instances). 
+
+## Approaches to cope with these challenges
+
+### Cross validation
+
+### Leave one out cross validation
+
+### Two stage cross validation
+
+https://doi.org/10.1530/JOE-18-0117:
+ Two-stage cross-validation procedure: Each outer loop starts with splitting off the validation data from the remaining data that are further divided in a training set and a test set at each start of a training period. The training set is used to build a RF exploiting all features. Predictions are made on the test set and feature importance is measured as the Gini index. Training is repeated on different splits of the data and average importance (Imp.) for all features is computed. Afterward, a new RF restricted to the top i features (those with the highest mean Gini index) is build. It is trained on the combination of training and test data and employed to classify the validation data. Variable importance after each run is weighted by the achieved predictive performance using the area under the receiver-operating characteristic curve. 
+
+
+## Which models to evaluate?
+
+DOI:10.1038/s41598-018-27031-x
+The SVM algorithm was selected for machine learning classification, which has gained great success in analyzing gene expression data and handling noisy data in omics studies4,28–31

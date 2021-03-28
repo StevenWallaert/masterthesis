@@ -1,0 +1,20 @@
+Doorheen het bekijken van literatuur best wel verward geraakt door de manier waarop er wordt te werk gegaan.
+
+Mijn verwachting: dataset --> model selection --> features (één selectie)
+In realiteit niet zo vaak het geval. Soms wel.
+Maar vaak: dataset --> feature selection --> model selection --> features (dubbele selectie, 
+
+waarbij de eerste selectie met een hele brede range van manieren wordt benaderd -> DE (t-tests), etc. etc.)
+
+OOk soms hele procedure waarvan je je afvraagt, waar halen ze het? Vb 34000 verschillende modellen werden gebouwd telkens met 3 proteines
+de top 10 % beste modellen werden geselecteerd en er werd geregistreerd hoe vaak elke proteïne voorkwam. Average count and coef size was computed.
+
+
+Algemeen --> er is geen lijn in te trekken...
+
+Idee:
+-soms lees je dat het combineren van verschillende modi van data (bv. genomics + transcriptomics + proteomics + metabolomics)
+betere resultaten zou beloven --> echter, je zou kunnen verwachten dat dit niet noodzakelijk het geval is wanneer er intercorrelaties
+zijn. In dat geval is er grotere onzekerheid over de toedracht van elke omic. In dat geval denk ik dat het beter is om een ensemble
+te maken van een apart model voor iedere omic. deze aanpak werd ook gebruikt in Hejase HA and Chan C: Improving Drug Sensitivity Prediction Using Different Types of Data. CPT Pharmacometrics SystPharmacol 4: 98-105, 2015. in de context van SVM
+

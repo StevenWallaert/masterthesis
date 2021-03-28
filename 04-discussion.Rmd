@@ -1,0 +1,13 @@
+---
+title: "Discussion"
+author: "Steven Wallaert"
+date: "27-10-2020"
+output: 
+  bookdown::pdf_document2:
+---
+
+```{r setup-discussion, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Discussion
