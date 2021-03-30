@@ -92,7 +92,7 @@ getWeights <- function(test.fold, X) {
     if(!is.null(test.fold)) train.data = X[-test.fold, ]
     
     svmModel = svm(train.data[, -1], train.data[, 1], cost=10, cachesize=500,
-    scale=F, type="C-classification", kernel="linear")
+    scale=F, type="C-classification", kernel="radial")
     
     t(svmModel$coefs) %*% svmModel$SV
 }

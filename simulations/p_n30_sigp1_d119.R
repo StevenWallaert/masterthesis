@@ -8,7 +8,7 @@ set.seed(1)
 n <- 30
 p <- c(10, 30, 100, 300, 1e3, 3e3, 6e3)
 sig_p <- 1
-d <- 0.74
+d <- 1.19
 nsims <- 400
 
 df_detections <- tibble(p = p,
@@ -26,9 +26,9 @@ for (i in 1:length(p)){
 df_detections %>%
   unnest(result) %>%
   add_column(n, sig_p, d, nsims) %>%
-  write_csv("output/p_n30_sigp1_d074_nsims400_detect.csv")
+  write_csv("output/p_n30_sigp1_d119_nsims400_detect.csv")
 
 df_performances %>%
   unnest(result) %>%
   add_column(n, sig_p, d, nsims) %>%
-  write_csv("output/p_n30_sigp1_d074_nsims400_perf.csv")
+  write_csv("output/p_n30_sigp1_d119_nsims400_perf.csv")
