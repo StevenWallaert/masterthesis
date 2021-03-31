@@ -12,6 +12,9 @@ library(ROCR)
 library(doParallel)
 library(Boruta)
 library(randomForest)
+library(tidyverse)
+source("SVM-RFE-master/msvmRFE.R")
+library(e1071)
 ncores <- 5
 prop_train <- 2/3
 pop_size <- 1e4
@@ -146,7 +149,7 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       
       ## the while loop and try construction is there to catch errors in case of extremely small sample sizes
       ## in those cases it happens that some folds have 0 observations in one of the 2 classes, result: error
-      cvfit <- 1 # just a random variable so that the program can enter the while loop
+      cvfit <- 1 # just a variable so that the program can enter the while loop
       
       while(class(cvfit) != "cv.glmnet"){
         # catches the error in case of an error, or the result in case of a successful try
@@ -277,9 +280,9 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       
 ##### SVM RFE ####
       # source("SVM-RFE-master/msvmRFE.R")
-      svm_rfe <- svmRFE(cbind(Y_train, X_train), k = 5, halve.above = 300)
+      svm_rfe <- svmRFE(cbind(Y_train, X_train), k = 5, halve.above = 250)
       
-      n_feat <- max(2, p %/% 100)
+      n_feat <- max(2, p %/% 100) # minimum 2 variables, and at most 1% cf. ....
       
       svm_results$detections[i] <- list(svm_rfe[1:n_feat])
       

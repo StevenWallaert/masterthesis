@@ -18,12 +18,15 @@ t_tweedie_summary <- function(results_of_experiment){
     ungroup() %>%
     complete(i, detection, fill = list(n=0)) 
   
+  
   detection_summary <- true_false_detections %>%
     group_by(detection) %>% # for TRUE and FALSE detections:
     summarise(mean_nr = mean(n),           # mean number of detections
               mean_se = sd(n)/sqrt(nsims), # MCSE
               a_detection = mean(n>0),     # proportion of simulations that result in 'a detection' 
-              a_det_se = sqrt(a_detection * (1-a_detection)/nsims)) # MC SE of proportion
+              a_det_se = sqrt(a_detection * (1-a_detection)/nsims)) %>%  # MC SE of proportion
+    add_column(method = "tweedie")
+  
   
   performance_summary <- results_of_experiment %>%
     summarise(test_auc = mean(perf_test, na.rm=T), # calculates the mean auc (test, pop_l, pop_f)
@@ -33,7 +36,8 @@ t_tweedie_summary <- function(results_of_experiment){
               auc_bias_se = sd(perf_test - perf_pop, na.rm = T)/sqrt(nsims-sum(is.na(perf_test))),
               auc_sd = sd(perf_test, na.rm = T),
               auc_sd_se = sd(perf_test, na.rm = T)/sqrt(2*(nsims-sum(is.na(perf_test))-1))
-    ) 
+    ) %>% 
+    add_column(method = "tweedie")
 
     # null results
   nulls <- results_of_experiment %>%
@@ -41,10 +45,12 @@ t_tweedie_summary <- function(results_of_experiment){
     unnest(detections) %>%
     complete(i) %>%
     group_by(i) %>%
-    summarise(nullresult=any(is.na(detections))) %>%
+    summarise(nullresult=factor(any(is.na(detections)), levels= c("TRUE", "FALSE"))) %>%
     count(nullresult) %>%
-    mutate(proportion = n/sum(n)) %>%
-    filter(nullresult)
+    complete(nullresult, fill = list(n=0)) %>%
+    mutate(p = n/sum(n),
+           p_se = sqrt(p * (1-p)/nsims)) %>% 
+    add_column(method = "tweedie")
   
   
   list(raw_results = results_of_experiment,

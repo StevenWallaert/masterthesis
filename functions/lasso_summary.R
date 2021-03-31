@@ -40,7 +40,8 @@ lasso_summary <- function(results_of_experiment){
     summarise(mean_nr = mean(n),           # mean number of detections
               mean_se = sd(n)/sqrt(nsims), # MCSE
               a_detection = mean(n>0),     # proportion of simulations that result in 'a detection' 
-              a_det_se = sqrt(a_detection * (1-a_detection)/nsims)) # MC SE of proportion
+              a_det_se = sqrt(a_detection * (1-a_detection)/nsims)) %>%#  MC SE of proportion
+    add_column(method = "lasso")
   
   # performance summary
   #
@@ -52,16 +53,16 @@ lasso_summary <- function(results_of_experiment){
     summarise(test_auc = mean(perf_test), # calculates the mean auc (test, pop_l, pop_f)
               test_auc_se = sd(perf_test)/sqrt(nsims),
               pop_auc = mean(perf_pop),
-              pop_auc_se = sd(perf_pop_lim)/sqrt(nsims),
+              pop_auc_se = sd(perf_pop)/sqrt(nsims),
               #pop_full_se = sd(perf_pop_full)/sqrt(nsims),
               auc_sd = sd(perf_test),                        # to have an indication of the variance of the estimator, sd for ease of interpretation
               auc_sd_se = sd(perf_test)/sqrt(2*(nsims-1)),         # MCSE of SD
-              auc_bias = mean(perf_test - perf_pop_lim),
-              auc_bias_se = sd(perf_test - perf_pop_lim)/sqrt(nsims),
+              auc_bias = mean(perf_test - perf_pop),
+              auc_bias_se = sd(perf_test - perf_pop)/sqrt(nsims),
               #bias_f = mean(perf_test - perf_pop_full),
               #bias_f_se = sd(perf_test - perf_pop_full)/sqrt(nsims)
               ) %>%
-    rename_with(~ str_remove(.x, "perf_"))
+    add_column(method = "lasso")
   
   # null results
   nulls <- results_of_experiment %>%
@@ -69,15 +70,16 @@ lasso_summary <- function(results_of_experiment){
     unnest(detections) %>%
     complete(i) %>%
     group_by(i) %>%
-    summarise(nullresult=any(is.na(detections))) %>%
+    summarise(nullresult=factor(any(is.na(detections)), levels= c("TRUE", "FALSE"))) %>%
     count(nullresult) %>%
-    mutate(proportion = n/sum(n)) %>%
-    filter(nullresult)
+    complete(nullresult, fill = list(n=0)) %>%
+    mutate(p = n/sum(n),
+           p_se = sqrt(p * (1-p)/nsims)) %>%
+    add_column(method = "lasso")
     
   
   list(raw_results = results_of_experiment,
        counts = true_false_detections,
-       #barplot = barplot_detections,
        detections = detection_summary,
        performances = performance_summary,
        nullresults = nulls)

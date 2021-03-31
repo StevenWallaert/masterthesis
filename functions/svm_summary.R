@@ -1,6 +1,6 @@
-boruta_summary <- function(results_of_experiment){
+svm_summary <- function(results_of_experiment){
   
-  results_of_experiment <- results_of_experiment$boruta
+  results_of_experiment <- results_of_experiment$svm
   nsims <- nrow(results_of_experiment)
   
   # count True and False detections
@@ -39,14 +39,15 @@ boruta_summary <- function(results_of_experiment){
               mean_se = sd(n)/sqrt(nsims), # MCSE
               a_detection = mean(n>0),     # proportion of simulations that result in 'a detection' 
               a_det_se = sqrt(a_detection * (1-a_detection)/nsims)) %>% # MC SE of proportion
-    add_column(method = "boruta")
+    add_column(method = "svm")
+  
   # performance summary
   #
   # Result = table showing mean test auc together with 'true auc' + MCSE
   #          also the sd (+MCSE) of the test auc is caluclated ~ indicates the variance of the estimator
   #          bias is derived (+MCSE)
   #          population auc/bias is derived for models built on training data (lim, l) or full data (full, f)
-
+  
   
   performance_summary <- results_of_experiment %>%
     summarise(test_auc = mean(perf_test, na.rm=T), # calculates the mean auc (test, pop_l, pop_f)
@@ -61,7 +62,7 @@ boruta_summary <- function(results_of_experiment){
               #bias_f = mean(perf_test - perf_pop_full),
               #bias_f_se = sd(perf_test - perf_pop_full)/sqrt(nsims)
     ) %>% 
-    add_column(method = "boruta")
+    add_column(method = "svm")
   
   # null results
   nulls <- results_of_experiment %>%
@@ -74,7 +75,7 @@ boruta_summary <- function(results_of_experiment){
     complete(nullresult, fill = list(n=0)) %>%
     mutate(p = n/sum(n),
            p_se = sqrt(p * (1-p)/nsims)) %>% 
-    add_column(method = "boruta")
+    add_column(method = "svm")
   
   list(raw_results = results_of_experiment,
        counts = true_false_detections,
