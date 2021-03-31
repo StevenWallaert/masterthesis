@@ -65,3 +65,24 @@ out2 %>%
        y="",
        title= "Estimated AUC",
        subtitle = "n=50, p=100, sig_p=3, d=1.19, nsims=10")
+
+
+# null_results
+
+out3 <- tibble(result = vector(length = 5))
+
+for (i in 1:5) {
+  out3$result[i] <- list(summary_functions[[i]](res)$nullresults)
+}
+
+out3 %>%
+  unnest(result) %>%
+  filter(nullresult == "TRUE") %>%
+  mutate(method=ordered(method, levels=c("fdr", "tweedie", "lasso", "boruta", "svm"))) %>% 
+  ggplot(aes(method, p)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=p-1.96*p_se, ymax=p+1.96*p_se), width=0.2) +
+  labs(x="",
+       y="",
+       title= "Proportion of simulations that resulted in no selected features",
+       subtitle = "n=50, p=100, sig_p=3, d=1.19, nsims=10")
