@@ -97,7 +97,7 @@ Y <- factor(targets$Strain)
 This dataset consists of `r ncol(tibeset)` features measured on `r nrow(tibeset)` samples. There are 2 classes, each with 4 samples. Mean, standard deviation, median, inter quartile range (iqr), minimum (min), and maximum (max) was calculated for every gene and strain combination. This allows to visualize the distributions of these statistics across genes for every strain. This visualization can be seen in figure \@ref(fig:descriptives). The distributions of the statistics of the 2 strains look very alike. There is a small difference noticable in the distribution of standard deviation and inter quartile range, meaning that expression levels of lrp- are slightly more variable than expression levels of lrp+.
 
 
-```{r descriptives, warning=F, message=F, out.width="75%", fig.align='center', fig.cap="\\textit{Distributions of descriptive statistics of gene expression levels of both strains.}"}
+```{r descriptives, warning=F, message=F, out.width="75%", fig.show='hold', fig.align='center', fig.cap="\\textit{Distributions of descriptive statistics of gene expression levels of both strains.}"}
 tibble(Y, as.data.frame(tibeset)) %>%
   pivot_longer(-Y, names_to = "gene", values_to = "expression") -> df
 
@@ -156,7 +156,7 @@ for (i in seq(1,ncol(tibeset))){
 
 After the t-tests are performed, a histogram of the test statistics is constructed. The middle of each bin and the counts are used to perform a 4th degree polynomial poisson regression (log link). The coefficients can be found in table \@ref(tab:coef)
 
-```{r hist, out.width="75%", fig.align="center", fig.cap="\\textit{Histogram of the test statistics. The vertical dashes show the individual data points.}"}
+```{r hist, out.width="75%", fig.align="center", fig.show='hold', fig.cap="\\textit{Histogram of the test statistics. The vertical dashes show the individual data points.}"}
 as_tibble(testresults) %>%
   ggplot(aes(statistic)) +
   geom_histogram(bins = 30, color = "white") +
@@ -184,7 +184,7 @@ betas %>%
 
 After the log derivative and the variance of the test statistics is estimated we perform the correction. Figure \@ref(fig:beforeafter) shows the curve of corrected test statistic vs. uncorrected test statistic.
 
-```{r beforeafter, out.width="75%", fig.align='center', fig.cap="\\textit{Corrected vs. uncorrected test statistics plot. The dashed line shows y=x.}"}
+```{r beforeafter, out.width="75%", fig.align='center', fig.show='hold', fig.cap="\\textit{Corrected vs. uncorrected test statistics plot. The dashed line shows y=x.}"}
 # step 3: calculate l'()
 l_prime <- function(x){
   x <- c(1, poly(x, degree = 3, raw=T)) 
