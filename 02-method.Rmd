@@ -123,7 +123,7 @@ We used a variant of SVMRFE which uses cross validation to achieve more stabilit
 
 ## Software, reproducibility, and code availability
 
-The simulations and analyses were programmed in R  v4.1.1 [@Rbase]. The packages that were used for the different methods are listed in table \@ref(tab:packages). To ensure reproducibility a different seed was used for the pseudo random number generator. These seeds are listed in in table \@ref(tab:seeds). For reproducibility purposes, the session info can be found in appendix \@ref(sessioninfo).
+The simulations and analyses were programmed in R  v4.1.1 [@Rbase]. The packages that were used for the different methods are listed in table \@ref(tab:packages). To ensure reproducibility a different seed was used for the pseudo random number generator. These seeds are listed in in table \@ref(tab:seeds). For reproducibility purposes, the session info can be found in appendix \@ref(sessioninfo). All code used for this thesis can be downloaded from https://github.com/StevenWallaert/masterthesis.
 
 
 ```{r}

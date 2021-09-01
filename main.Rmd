@@ -466,3 +466,6 @@ sessionInfo()
 ```
 
 
+# Appendix: Code
+
+All code can be downloaded from https://github.com/StevenWallaert/masterthesis.
