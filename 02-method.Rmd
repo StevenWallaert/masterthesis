@@ -7,7 +7,153 @@ output:
 ---
 
 ```{r setup-method, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F)
 ```
 
-# Method
+# Methods
+
+In this section we follow the guidelines of Morris et al. in that we structure the methods section according to the ADEMP acronym, which stands for aims, data-generating mechanisms, estimands or targets, methods, and performance measures.
+
+## Aims
+
+We want to examine, by means of a simulation study, several properties of the 5 aforementioned methods in the context of pre-clinical pharmacological research where high dimensional (omics) data on only very few subjects are to be analyzed. These properties are:
+
+- the mean number of true / false detections
+
+- the chance of doing at least one true / false detection
+
+- the rate of null-results
+
+- the duration of the analysis
+
+- discriminative ability for the model based methods
+
+
+In doing so we hope to identify: 
+
+- conditions under which the methods under investigations fail or break or, as we call it, boundary conditions
+
+- relative strengths
+
+
+
+## Data-generating mechanisms
+
+We will simulate data using a simple parametric model (normal distribution) that will allow to manipulate the data easily. 
+
+We will consider a number of different scenario's for this simulation study. To this end we will vary:
+
+- the number of subjects, n
+
+- the number of features, p
+
+- the number of significant features, sig_p
+
+- the difference in population mean between the 2 groups for the significant features, or effect size, d
+
+- correlation structure 
+
+We have simulated a number of different scenarios using a low number of repetitions to explore which parameter settings yield the most interesting results. These can be found in appendix \@ref(exploratory). From this first round of simulations we could select scenarios in a more informed manner. These scenarios were then simulated one hundred times.
+
+
+In each scenario there will be 2 groups (k, treatment vs. control) of equal size. In the scenarios with no correlation between features, the data will be simulated following $ X_{ij}^{k}$ distributed as $N(k \delta_j, 1)$, with i = 1 ... n, j = 1 ... p, k = 0, 1 and $\delta_j = d$ for j = 1...sig_p and $\delta_j = 0$ for j = sig_p+1...p. 
+
+In the scenarios with correlation we use a block correlation structure for the correlation matrix following the same architecture as in @acharjee2020, that is 6 groups of 10 features that are highly intra-group correlated and a seventh rest group with no correlation (see figure \@ref(fig:blockcor)). To achieve the block correlation structure we use the simcor function from the MarkJBrewer/ICsims package [@ICsims]. The intra-group correlations were set at 0.9, the other correlations were set at 0. 
+
+```{r}
+caption <- "\\textit{First 100 features of an example of the block correlation structure used in the correlated scenarios.}"
+```
+
+
+```{r blockcor, fig.cap=caption, out.width="75%", fig.align="center", message=F}
+source("functions/create_data.R")
+exdat <- create_data(50, 100, 3, 1, "block")
+
+library(tidyverse)
+library(ggcorrplot)
+library(kableExtra)
+excor <- cor(exdat$X)
+
+ggcorrplot(excor, ggtheme = ggplot2::theme_void, outline.color = "white")
+```
+
+
+## Targets and performance measures
+
+The statistical task we are evaluating the methods on is model selection (for the models) and hypothesis testing (for the t-tests). We want to measure how good the methods can discriminate between significant and non-significant features. We want as many true positives as possible while keeping the false positives as low as possible. 
+
+The performance measures we are using are the mean number of true/false detections and the chance of true/false detection. Additionally we are also measuring the rate of null-results, and the duration of the analyses. We define null-results as results with no positives, true or false.
+
+The discriminative ability of the model based methods will be measured with the AUC. After the feature selection, a model will be built with those features. That model will then be tested on a separate test set (see below). LASSO will just use its output model. Boruta results in a random forest model, and SVM-RFE results in a SVM.
+
+
+## Implementation of methods
+
+This sections discusses the practicalities of the implementation of the different methods, allowing reproducibility. For a substantive discussion of the methods, please refer to sections \@ref(intro-FDR) to \@ref(intro-SVMRFE).
+
+We have 3 model based methods and 2 hypothesis test based methods. The hypothesis test based methods are performed using all available data. In the case of the model based methods, a separate train and test set is created using a 1:2 ratio (2/3 train set, 1/3 test set). This train-test split is done to reflect real life analyses and the 1/3 test set size is chosen because the more standard 20% test split size did not work in the scenarios with sample size of 10.
+
+
+### T-tests with false discovery rate control
+
+In a first step the p t-tests are performed. Then, the corrections to the p-values are made, turning them into q-values, using the p.adjust function and using the BH [@BH1995] method. After this correction, each feature for which holds that the q-value < 0.05 is stored as a detection.
+
+
+### T-tests with Tweedie correction
+
+In a first step the p t-tests are performed. Each test statistic is stored and is binned into one of 30 bins. The number of test statistics per bin is counted. This comes essentially down to creating a histogram of the test statistics. Then a 5th degree polynomial poisson regression is fitted with the counts as dependent an the middle of each bin as independent variable. The result is a model that approximates the empirical probability density function of the test statistics. In a next step the variance of the test statistics is estimated and the derivative of the approximated density function is evaluated for each test statistic. At this point we have everything needed to apply Tweedie's formula $E\{\mu|z\} = z + \sigma^2l'(z)$ and we calculate the corrected test statistics and according p-values. Each feature for which holds that the p-value < 0.05 is stored as a detection.
+
+
+### L1 penalized logistic regression
+
+L1 penalized logistic regression has a hyperparameter (the penalization parameter $\lambda$) that needs to be tuned. The preffered way to do this is to do a grid search of possible values for $\lambda$ in conjunction with cross validation. We did a 5-fold cross validation with the cv.glmnet function of the glmnet package [@LASSO], using the AUC as criterion. The cv.glmnet function provides parallel support which was used for p > 1000. This threshold was chosen after initial experimentation and profiling of the code. Once the optimal value for $\lambda$ was chosen, i.e. the minimal value for lambda for which the AUC is maximized, a final model was fitted with this value for $\lambda$. The selected features were then stored as detections.
+
+A construction to catch errors was necessary for the scenarios with extreme small sample sizes (10) because in those cases it happens that some folds have 0 observations in one of the 2 classes.
+
+
+### Boruta
+
+Boruta is very easy to implement. The Boruta package [@Boruta] provides a Boruta function to which you can pass the data and several other parameters. We set the critical p-value at 0.05 and the number of trees at 500. Only features that had a "confirmed" status after the algorithm was finished were treated as detected features.
+
+
+### SVMRFE
+
+We used a variant of SVMRFE which uses cross validation to achieve more stability. As with the L1 penalized logistic regression we chose to do a 5-fold cross validation. To speed up the computation, it is possible to tell the algorithm to halve the number of features each iteration until a certain number of features is reached. We chose a number (250) that was not too high, so that we could effectively speed up the computation, nor too low, so that the risk of accidentally eliminating significant features early on was kept at a minimum. As the algorithm gives a ranking of the features it was necessary to employ a rule to select the features. Based on @SVM_onepercent we chose to select the top 1% as detections.
+
+
+## Software, reproducibility, and code availability
+
+The simulations and analyses were programmed in R  v4.1.1 [@Rbase]. The packages that were used for the different methods are listed in table \@ref(tab:packages). To ensure reproducibility a different seed was used for the pseudo random number generator. These seeds are listed in in table \@ref(tab:seeds). For reproducibility purposes, the session info can be found in appendix \@ref(sessioninfo).
+
+
+```{r}
+atable <- tribble(
+  ~Method, ~Package, ~Citation,
+  "Boruta", "Boruta", "Kursa and Rudnicki (2010)",
+  "Logistic LASSO", "glmnet", "Friedman, Hastie, and Tibshirani (2010)",
+  "SVMRFE", "SVM-RFE", "Duan et al. (2005)"
+)
+
+kbl(atable, caption = "Used packages related to methods", label = "packages", booktabs = T)
+```
+
+T-tests and FDR adjustment [@BH1995] are implementen in base R. The Tweedie-correction has, to our knowledge, no implementation and has been programmed by the author.
+
+```{r}
+atable <- tribble(
+  ~scenario, ~correlated, ~d, ~sig_p, ~n, ~seed,
+  "A1", "no", "1.1", "10", "50", "2108191137",
+  "A2", "no", "0.7", "10", "50", "2108191339",
+  "A3", "no", "0.3", "10", "50", "2108191522",
+  "B1", "no", "0.9", "1", "10", "2108191717",
+  "B2", "no", "1.81", "1", "10", "2108191839",
+  "C1", "no", "0.95", "3", "30", "2108191954",
+  "C2", "no", "1.3", "3", "30", "2108200747",
+  "D", "no", "0", "0", "20", "2108201715",
+  "block A1", "block", "1.1", "10", "50", "2108201412",
+  "block C2", "block", "1.3", "3", "30", "2108201023",
+)
+
+kbl(atable, caption = "Used seed per scenario", label = "seeds", booktabs = T)
+```
+

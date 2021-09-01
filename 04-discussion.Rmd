@@ -4,10 +4,223 @@ author: "Steven Wallaert"
 date: "27-10-2020"
 output: 
   bookdown::pdf_document2:
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup-discussion, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 # Discussion
+
+## Boundary conditions
+
+From the results of scenario A3 we learn that at n = 50, and sig_p = 10, d = 0.3 and at p larger than or equal to 1,000 virtually no method can deliver any satisfying results anymore. None of the methods have an expected number of true discoveries larger than 1 and this for the entire range of p. None of the methods have a chance of having a true discovery below 0.4 (except at p = 100), while for all methods except FDR the chance of at least one false discovery is above 0.5 for the entire range of p.
+
+The same is true for the B scenarios, that is no satisfying performance, where n = 10 and sig_p = 1 for the entire range of p and both values for d. In these scenarios the Boruta method totally failed to work. The other methods delivered very poor performances. Except for FDR (and Boruta, see above), all other methods had a chance of having at least one false discovery of above 0.5 for the entire range of p while the chance of having at least one true discovery was below 0.25 for the entire range of p in when d = 0.9. Performances were slightly better at a high effect size per feature. However they were still far beneath satisfactory levels.
+
+In scenario C1 with n = 30, sig_p = 3, d = 0.95 there were also very poor results when p was larger than or equal to 1,000. In terms of mean number of true discoveries only Tweedie was able to find on average more than one true discovery at p = 100, on average 1 true discovery at p = 300. From p = 1,000 on the mean number of true discoveries was less than 1 for every method while the mean number of false discoveries was larger than 1, except for FDR.
+
+The conditions discussed above are what we call boundary conditions in which it is to be expected to have no or very few useful results in general. With in general, we mean that it is the case for all methods.
+
+## Formulation of guidelines
+
+There is no one method that is best at everything, so what method to choose will depend on what is important to the problem at hand. If one values conservativeness more, then it is clear that FDR is the best choice. In all scenarios FDR was the best performing method with respect to keeping the number of false discoveries within reasonable limits. The method to avoid is the SVM. Because of the top 1% rule, it always picks 100 features at p = 10,000. In this way there will be a lot of false discoveries when sig_p is rather small. The same conclusion can be made on the basis of the results regarding the chance of at least one false discovery. This is not that surprising. Another method to avoid when striving for conservativeness is Boruta as it performed poorly with regard to the chance of at least one false discovery in scenarios A (optimistic), C (in between), D (no sig_p) and both block correlation scenarios. In the B scenarios (pessimistic) Tweedie was also among the least conservative methods.
+
+If one, on the other hand, values many true discoveries at the cost of more false discoveries, then other methods are in place. SVM is almost consistently among the best performing methods in this regard. Only in A1block (optimistic, large effect size), did SVM fail to be among the best methods. The downside of SVM is of course a high number of false discoveries. Other methods that deliver good results in terms of number of true discoveries is Tweedie (A1, B, C2, A1block, C2block). Most often, Tweedie is less 'aggressive' than SVM in that it doesn't result in that much false discoveries as SVM does. It is interesting that Tweedie is present in the list of well performing methods in the block correlation scenarios while SVM is not in both. This could perhaps indicate that Tweedie is better suited when the data gets more realistic properties. 
+
+Methods to avoid in this regard are FDR and LASSO. FDR is consistently among the worst methods. This is not surprising since it is the most conservative method (see above). LASSO didn't do well in this regard in scenarios A1, B1, C2, A1block, and C2block. It is interesting to see that LASSO was among the worst performing methods in the block correlation scenarios. The fact that it has difficulties in dealing with highly correlated features is a well known weakness of the LASSO. Highly correlated features are a problem for coefficient estimation. In such cases multicollinearity, the presence of highly intercorrelated features, results in highly variable estimates. The LASSO can deal with these kinds of features by removing all but one. However, the method is agnostic of which feature is a true or false feature. Thus, in highly correlated situations the lasso will discard many correlated features. And it does so unknowingly of feature status (true or false).
+
+This downside of the LASSO has also a benefit. Getting rid of multicollinearity by setting some coefficients to zero will benefit prediction. When prediction is of main interest, the LASSO is often the better choice compared to the other model based methods. It was the best method in scenarios A1 (optimistic, relatively large effect size), A3 (optimistic, yet small effect size), C2 (in between, larger effect size), A1block, and C2block. SVM performed best in scenarios A2 and C2block. As such Boruta is often to be avoided.
+
+If one really wants to avoid null results, then one thing to consider is using SVM. SVM will always produce results because of the top 1% rule. The added benefit is that we have seen that SVM is often good at capturing the significant features. Yet, it comes with the cost of a lot of false discoveries as well. Other methods to consider are Tweedie (A1, B1, B2, C2) and Boruta (A1, A2, A3, C1, C2, A1block, and C2block). However, Boruta did not perform very well with regard to other measures.
+
+All in all, the results of Tweedie look promising because the method often performs quite well with regard to true discoveries and 'not so bad' with regard to false discoveries. It is not possible to have a method that is optimal in both. Yet, Tweedie seems to find some sort of middle ground in many scenarios. 
+
+One other thing to consider is the ease of use. While the application of Tweedie's formula is in essence not that complicated, it is a fact that no off-the-shelf implementation is available. This can and will be an obstacle for some, if not many, people. Maybe such a solution could become available in the future, for example in the form of an R-package.
+
+
+
+## Limitations of the current study
+
+In the current study a lot of simulation parameters were manipulated: number of features, number of significant features, sample size, effect size per feature, correlation structure. Because there were so many parameters it was impossible to implement a full factorial design in which all combinations of values are explored. In this study, only a tiny fraction of the entire simulation parameter space was explored. We chose not to use a full factorial design because it would sooner rather than later become practically unfeasible to do the entire simulation study. 
+
+Yet, it might be that a full factorial design with a tighter focus would be feasible and interesting. Now we chose to entangle number of samples with number of significant features and compose them together as optimistic, pessimistic and in between. While this was a means to keep things workable, it leaves the question what the effect is of the one or the other. Which of the 2 is more important in terms of boundary conditions? Maybe the disentanglement of sample size and number of significant features could lead to other guidelines.
+
+Even with the current entanglement, it is still the case that we only explored a tiny fraction of that subspace of the simulation parameter space. And it may be that we did not choose the most interesting values. The exploratory simulations were intended to mitigate this somewhat, but the problem isn't solved by that. The problem is only shifted.
+
+Another possible remark are the included methods. In ideal circumstances one would include all the most relevant methods. However, this is practically not possible. In this study there were 2 classes of methods: methods that involve hypothesis tests and feature selection methods that are based on prediction models. As we have seen, not all performance measures are applicable to every method, which is not ideal.
+
+An other weakness is the simplicity of the data generating mechanism. Simple data generating mechanisms allow for easy interpretation. On the other hand, it could be that because of that simplicity the results aren't applicable to real analyses. Methods like SPsimSeq [@simseq] could be used to enhance the realism of the simulated data and as a consequence also enhance the applicability of the results. 
+
+A last thing to consider is the difference in parameter tuning of the LASSO in comparison with SVM and Boruta. Although both SVM and Boruta have hyperparameters that can be tuned, we only used the default values.
+
+\newpage
+
+# Example analysis
+
+In this last section we will perform an example analysis. The data that we will use come from @dataset and found it via the userguide of the limma bioconductor package. In this user guide there is example code given that allows one to set up the data. This example code was used only to import and set up the data so that it was in a format that was familiar.
+
+@dataset explain that
+
+>the purpose of the work presented here is to identify the network of genes that are differentially regulated by the global E. coli regulatory protein, leucine-responsive regulatory protein (Lrp), during steady state growth in a glucose supplemented minimal salts medium. Lrp is a DNA-binding protein that has been reported to affect the expression of approximately 55 genes.
+
+We will approach the data only from a statistical point of view.
+
+## Data set description and exploratory analysis
+
+```{r, warning=F, message=F}
+library(limma)
+library(affy)
+
+# Download files from: http://bioinf.wehi.edu.au/limma/data/ecoli-lrp.zip
+
+# Read in targets
+targets <- readTargets("ecoli-lrp/targets.txt")
+
+eset <- justRMA(filenames = targets$FileName, 
+                celfile.path = "ecoli-lrp")
+
+colnames(eset) <- row.names(targets)
+
+library(tidyverse)
+
+tibeset <- t(as.matrix(eset))
+
+Y <- factor(targets$Strain)
+
+
+
+```
+
+This dataset consists of `r ncol(tibeset)` features measured on `r nrow(tibeset)` samples. There are 2 classes, each with 4 samples. Mean, standard deviation, median, inter quartile range (iqr), minimum (min), and maximum (max) was calculated for every gene and strain combination. This allows to visualize the distributions of these statistics across genes for every strain. This visualization can be seen in figure \@ref(fig:descriptives). The distributions of the statistics of the 2 strains look very alike. There is a small difference noticable in the distribution of standard deviation and inter quartile range, meaning that expression levels of lrp- are slightly more variable than expression levels of lrp+.
+
+
+```{r descriptives, warning=F, message=F, out.width="75%", fig.align='center', fig.cap="\\textit{Distributions of descriptive statistics of gene expression levels of both strains.}"}
+tibble(Y, as.data.frame(tibeset)) %>%
+  pivot_longer(-Y, names_to = "gene", values_to = "expression") -> df
+
+df %>%
+  group_by(Y, gene) %>%
+    summarise(mean = mean(expression),
+            sd = sd(expression),
+            min = min(expression),
+            max = max(expression),
+            median = median(expression),
+            iqr = IQR(expression)) -> basics
+
+basics %>% 
+  pivot_longer(-c(Y, gene), names_to = "statistic", values_to = "value") -> basics_long
+
+basics_long %>%
+  mutate(statistic = factor(statistic, 
+                            levels = c("mean", "sd", "min",
+                                       "median", "iqr", "max"))) -> basics_long
+
+ggplot(basics_long, aes(value, fill = Y)) +
+  geom_density(alpha = 0.5) +
+  theme_bw() +
+  labs(fill = "Strain") + 
+  facet_wrap("statistic", scales = "free" ) +
+  scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
+  labs(x="gene expression level") +
+  theme(legend.position = "bottom")
+```
+
+
+## Application of Tweedie's formula
+
+For this analysis, we will use Tweedie as method. This is because Tweedie performed best in the more realistic scenarios (block correlation). Also, there is little data at hand, only 8 samples. In order to make the most use out of the data it makes more sense to use all data for t-tests than to split the data in a training and test set like we would when using model based methods.
+
+Because FDR is far too concervative and we don't want to risk missing potential biomarkers we opt for Tweedie.
+
+In order to find out which genes are differentially expressed between strains the following null hypotheses were tested against the following alternative hypotheses: 
+
+$$\left.\begin{aligned} H_{0i}: \mu_{lrp- i} = \mu_{lrp+i} \\ H_{ai}: \mu_{lrp- i}\neq \mu_{lrp+i} \end{aligned} \right \} \space  \space i = \{1,\dots,7312\} $$
+
+In these hypotheses, $\mu_{lrp-i}$ and $\mu_{lrp+i}$ are the population means of the gene expression level of the ith gene in the lrp- and lrp+ strain respectively.
+
+```{r}
+testresults <- matrix(nrow=ncol(tibeset),  
+                         ncol=2 ) 
+rownames(testresults) <- colnames(tibeset)
+colnames(testresults) <- c("statistic", "df")
+
+for (i in seq(1,ncol(tibeset))){
+  test <- t.test(tibeset[,i]~Y)
+  testresults[i, "statistic"] <- test$statistic
+  testresults[i, "df"] <- test$parameter
+}
+```
+
+After the t-tests are performed, a histogram of the test statistics is constructed. The middle of each bin and the counts are used to perform a 4th degree polynomial poisson regression (log link). The coefficients can be found in table \@ref(tab:coef)
+
+```{r hist, out.width="75%", fig.align="center", fig.cap="\\textit{Histogram of the test statistics. The vertical dashes show the individual data points.}"}
+as_tibble(testresults) %>%
+  ggplot(aes(statistic)) +
+  geom_histogram(bins = 30, color = "white") +
+  theme_bw() +
+  geom_rug()
+```
+
+```{r, coef}
+# step 1: make counts per bin
+counts <- cut(testresults[,"statistic"], 30) %>%
+  as_tibble_col("bins") %>%
+  count(bins) %>%
+  mutate(t = map_dbl(str_extract_all(bins, "-?\\d+\\.?\\d+"), function(x) mean(as.numeric(x)) ) )
+
+# step 2: fit glm
+fit <- glm(n ~ poly(t, 4, raw = T), family = poisson(link = "log"), data = counts) 
+betas <- coef(fit)
+
+betas %>%
+  as_tibble() %>%
+  add_column(Coefficient = c("Intercept", "Poly 1", "Poly 2", "Poly 3", "Poly 4")) %>%
+  select(Coefficient, value) %>%
+  kableExtra::kbl(caption = "Coefficients of 4th degree polynomial poisson regression on bin counts.", label = "coef", booktabs = T)
+```
+
+After the log derivative and the variance of the test statistics is estimated we perform the correction. Figure \@ref(fig:beforeafter) shows the curve of corrected test statistic vs. uncorrected test statistic.
+
+```{r beforeafter, out.width="75%", fig.align='center', fig.cap="\\textit{Corrected vs. uncorrected test statistics plot. The dashed line shows y=x.}"}
+# step 3: calculate l'()
+l_prime <- function(x){
+  x <- c(1, poly(x, degree = 3, raw=T)) 
+  
+  as.vector(x %*% (betas[2:length(betas)] * 1:4 ))
+}
+
+var_t <- var(testresults[,"statistic"])
+
+# step 4: calculate corrected test statistics and corresponding p-values, assuming t is *approx* (cf. Efron for this) normally distributed
+out <- as_tibble(testresults) %>%
+  rowwise() %>%
+  mutate(corrected_t = statistic + var_t*l_prime(statistic),
+         corrected_p = 2*(1-pt(abs(corrected_t), df)))
+
+
+out %>%
+  ggplot(aes(x = statistic, y = corrected_t)) +
+  geom_point(color = "blue") +
+  geom_hline(yintercept = 0, lty="dotted") +
+  geom_vline(xintercept = 0, lty="dotted") +
+  theme_bw() +
+  geom_abline(slope = 1, intercept = 0, lty="dashed") +
+  labs(x = "uncorrected test statistic",
+       y = "corrected test statistic")
+```
+Now we can use the corrected statistics to calculate corrected p-values. We evaluate which p-values are less than 0.05 and we retrieve the according gene names. The results can be consulted in table \@ref(tab:exampleresults).
+
+```{r}
+out %>%
+  bind_cols(as_tibble_col(colnames(tibeset), "name")) %>%
+  filter(corrected_p < 0.05) %>%
+  kableExtra::kbl(caption = "Results of example analysis", label = "exampleresults", booktabs = T) 
+
+```
+
+
+
+\newpage

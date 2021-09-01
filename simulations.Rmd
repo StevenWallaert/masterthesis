@@ -357,6 +357,11 @@ files_perf <- files[str_detect(files, "perf.csv$")]
 df_perf <- map_df(files_perf, function(x){
   read_csv(paste0("output/", x))
 })
+
+files_null <- files[str_detect(files, "null.csv$")]
+df_null <- map_df(files_perf, function(x){
+  read_csv(paste0("output/", x))
+})
 ```
 
 ## Detections
@@ -365,20 +370,24 @@ df_perf <- map_df(files_perf, function(x){
 
 ```{r, fig.width=10}
 df_detect %>%
-  filter(sig_p == 1) %>%
+  #filter(! method %in% c("svm", "tweedie")) %>%
   ggplot(aes(x=p, y=mean_nr, fill=detection)) +
-  geom_col(show.legend = F) +
+  geom_col(position = "dodge", show.legend = F) +
   geom_errorbar(aes(ymin=mean_nr-1.96*mean_se, ymax=mean_nr+1.96*mean_se)) +
-  scale_x_log10(breaks=c(10,30,100,300,1000,3000,6000)) +
-  facet_grid(detection~d, scales="free_y")
+  scale_x_log10(breaks=c(10,30,100,300,1000,3000,1e4, 3e4))  +
+  facet_grid(detection~method, scales="free")
 
 df_detect %>%
-  ggplot(aes(x=p, y=mean_nr, group=d)) +
-  geom_point(aes(color=factor(d))) +
-  geom_line(aes(color=factor(d))) +
+  #filter(! method %in% c("svm", "tweedie")) %>%
+  filter(p < 3000) %>%
+  ggplot(aes(x=p, y=mean_nr, group=method)) +
+  geom_point(aes(color=method)) +
+  geom_line(aes(color=method)) +
   facet_grid(detection~., scales = "free_y") +
-  scale_x_log10(breaks=c(10,30,100,300,1000,3000,6000)) +
-  geom_linerange(aes(ymin=mean_nr-1.96*mean_se, ymax=mean_nr+1.96*mean_se, color=factor(d)), alpha = 0.8)
+  scale_x_log10(breaks=c(10,30,100,300,1000,3000,1e4, 3e4)) +
+  geom_linerange(aes(ymin=mean_nr-1.96*mean_se, ymax=mean_nr+1.96*mean_se, color=method), alpha = 0.8) +
+  scale_color_brewer(palette = "Set1") +
+  lims(y=c(0,10))
 ```
 
 
@@ -389,7 +398,7 @@ df_detect %>%
   geom_col(show.legend = F) +
   geom_errorbar(aes(ymin=mean_nr-1.96*mean_se, ymax=mean_nr+1.96*mean_se)) +
   scale_x_log10(breaks=c(10,30,100,300,1000,3000,6000)) +
-  facet_grid(detection~sig_p, scales="free_y")
+  facet_grid(detection~method, scales="free_y")
   
 ```
 
@@ -401,8 +410,8 @@ df_detect %>%
   ggplot(aes(x = p, y=a_detection, fill=detection)) +
   geom_col(show.legend = F) +
   geom_errorbar(aes(ymin =a_detection - 1.96*a_det_se, ymax= a_detection + 1.96*a_det_se)) +
-  scale_x_log10(breaks=c(10,30,100,300,1000,3000,6000)) +
-  facet_grid(detection~d, scales = "free_y")
+  scale_x_log10(breaks=c(10,30,100,300,1000,3000,1e4,3e4)) +
+  facet_grid(detection~method, scales = "free_y")
 ```
 
 Idem, maar dan met aangepaste CI's, en andere manier van visualiseren

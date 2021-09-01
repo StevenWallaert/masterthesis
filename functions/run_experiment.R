@@ -1,11 +1,17 @@
-# function to run experiment 
-# currently only supporting logistic lasso
-#
-#
-# nsims - number of repetitions
+#' Run a simulation
+#' 
+#' @description This function runs a simulation in which 5 methods (t-test with FDR control, t-test with Tweedie correction, Lasso, Boruta, SVM-RFE) are presented a simulated dataset. The aim of each method is to detect the (most) significant features while ignoring the irrelevant features.
+#' 
+#' @param n number of samples
+#' @param p number of features
+#' @param sig_p number of significant features
+#' @param d delta, the mean difference between regular and significant features
+#' @param nsims number of repetitions
+#' @return list of results from 5 different methods
+#' @example 
+#' run_experiment(10, 1e3, 1, 0.36, 100) 
 
 source("functions/create_data.R")
-
 
 library(glmnet)
 library(ROCR)
@@ -15,17 +21,14 @@ library(randomForest)
 library(tidyverse)
 source("SVM-RFE-master/msvmRFE.R")
 library(e1071)
-ncores <- 5
+ncores <- 15
 prop_train <- 2/3
 pop_size <- 1e4
 
 
-run_experiment <- function(n, p, sig_p, d, nsims){
+run_experiment <- function(n, p, sig_p, d, nsims, correlated){
   suppressMessages(suppressWarnings({
 
-    # parameters
-    # prop_train: proportion train - test
-    # pop_size: population size
 
     # dataframes to store results
     # # lasso
@@ -38,6 +41,7 @@ run_experiment <- function(n, p, sig_p, d, nsims){
                       perf_test = vector(length = nsims), # performance result on test set
                       perf_pop = vector(length = nsims), # performance result on population set
                       #perf_pop_full = vector(length = nsims) # performance model built on full dataset on population set
+                      time = vector(length = nsims)
     )
     # # t-test FDR control
     ttest_fdr <- tibble(i = 1:nsims, # number of repetition
@@ -48,7 +52,8 @@ run_experiment <- function(n, p, sig_p, d, nsims){
                         perf_pop = case_when(d == 0.36 ~ 0.6,
                                              d == 0.74 ~ 0.7,
                                              d == 1.19 ~ 0.8,
-                                             d == 1.81 ~ 0.9)
+                                             d == 1.81 ~ 0.9),
+                        time = vector(length = nsims)
     )
     # # t-test Tweedie
     ttest_tweedie <- tibble(i = 1:nsims, # number of repetition
@@ -59,7 +64,8 @@ run_experiment <- function(n, p, sig_p, d, nsims){
                         perf_pop = case_when(d == 0.36 ~ 0.6,
                                              d == 0.74 ~ 0.7,
                                              d == 1.19 ~ 0.8,
-                                             d == 1.81 ~ 0.9)
+                                             d == 1.81 ~ 0.9),
+                        time = vector(length = nsims)
     )
     # # Boruta
     boruta <- tibble(i = 1:nsims, # number of repetition
@@ -67,18 +73,20 @@ run_experiment <- function(n, p, sig_p, d, nsims){
                      sig_features = rep(list(1:sig_p), nsims), # the significant features
                      p = rep(p, nsims),  # number of features
                      perf_test = vector(length = nsims), # estimate of AUC
-                     perf_pop = vector(length = nsims)
-                     )
+                     perf_pop = vector(length = nsims),
+                     time = vector(length = nsims)
+    )
     # # SVM
     svm_results <- tibble(i = 1:nsims, # number of repetition
                           detections = vector(length = nsims), # detected features i.e. q-val < .05
                           sig_features = rep(list(1:sig_p), nsims), # the significant features
                           p = rep(p, nsims),  # number of features
                           perf_test = vector(length = nsims), # estimate of AUC
-                          perf_pop = vector(length = nsims)
+                          perf_pop = vector(length = nsims),
+                          time = vector(length = nsims)
     )
     # create a population data set to test the models on
-    pop <- create_data(pop_size, p, sig_p, d)
+    #pop <- create_data(pop_size, p, sig_p, d, correlated)
     
     # nsims repetitions
     pb <- txtProgressBar(min = 0, max = nsims, style = 3)
@@ -86,43 +94,14 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       
       #### Data setup ####
       # create simulation data set
-      #simdat <- create_data(n, p, sig_p, d)
-      
-      # train - test split, stratified
-      # X_train <- simdat$XY %>%
-      #   group_by(Y) %>%
-      #   slice_sample(prop = prop_train) %>% 
-      #   ungroup()
-      
-      # separate Y from X
-      # Y_train <- X_train %>% select(Y) %>% as.matrix()
-      
-      # delete Y out of dataframe, don't convert to matrix yet, will need it (cf anti_join)
-      # X_train <- X_train %>% select(!Y)
-      
-      # create test set, use all observations not in train
-      # X_test <- simdat$XY %>%
-      #   anti_join(X_train, by = "...1")
-      # 
-      # # now convert X_train to matrix
-      # X_train <- X_train %>% as.matrix()
-      # 
-      # # separate Y from X in test
-      # Y_test <- X_test %>% select(Y) %>% as.matrix()
-      # 
-      # # delete Y out of dataframe and convert to matrix
-      # X_test <- X_test %>% select(!Y) %>% as.matrix()
-      
-      ### better data setup ###
-      # profiling pointed out that the previous was slow
-      simdat <- create_data(n, p, sig_p, d)
+      simdat <- create_data(n, p, sig_p, d, correlated)
       
       # stratified sampling -> train - test
       train_ind <-
         tibble(Y=simdat$Y) %>%
         rownames_to_column() %>%
         group_by(Y) %>%
-        slice_sample(prop = prop_train) %>%
+        slice_sample(prop = prop_train) %>%  # rounded down, i.e. floored
         pull(rowname) %>%
         as.numeric()
       
@@ -133,8 +112,9 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       X_test <- simdat$X[-train_ind,]
       
       Y_test <- simdat$Y[-train_ind]
-      
+      #
 ######## logistic lasso ####
+      backthen <- Sys.time()
       # step 1: use 5-fold CV to obtain optimal value for lambda
       
       cl <- makeCluster(ncores) # added parallel support because of long computation times
@@ -155,8 +135,9 @@ run_experiment <- function(n, p, sig_p, d, nsims){
         # catches the error in case of an error, or the result in case of a successful try
         cvfit <- try({
           cv.glmnet(X_train, Y_train, family = "binomial", alpha = 1, nfolds = 5, type.measure = "auc", parallel = para)
-        }, silent = TRUE) 
+        }, silent = TRUE)
       }
+      
       stopCluster(cl)
       # step 2: fit model using optimal value for lambda obtained in step 1
       fit <- glmnet(X_train, Y_train, family = "binomial", alpha = 1, lambda = cvfit$lambda.min)
@@ -167,8 +148,8 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       results$perf_test[i] <- performance(pred, "auc")@y.values[[1]]
       
       # step 4: performance on population set, trained only on training set, hence limited
-      pred_pop <- prediction(predict(fit, newx = pop$X, type = "response"), pop$Y)
-      results$perf_pop[i] <- performance(pred_pop, "auc")@y.values[[1]]
+      #pred_pop <- prediction(predict(fit, newx = pop$X, type = "response"), pop$Y)
+      #results$perf_pop[i] <- performance(pred_pop, "auc")@y.values[[1]]
       
       # step 5: performance on population set, trained on full set, hence full
       # fullfit <- glmnet(simdat$X, simdat$Y, family = "binomial", alpha = 1, lambda = cvfit$lambda.min)
@@ -191,7 +172,11 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       # it may be good to keep track of this as well
       results$measure_cv[i] <- cvfit$name
       
+      # time
+      results$time[i] <- Sys.time() - backthen
+      
 ######## ttest fdr ####
+      backthen <- Sys.time()
       # step 1: perform t-tests and extract t-stat and pval
       out <- map_df(1:p, function(j){
         test <- t.test(simdat$X[,j]~simdat$Y)
@@ -215,8 +200,10 @@ run_experiment <- function(n, p, sig_p, d, nsims){
               mean(simdat$X[simdat$Y==1, j] < simdat$X[simdat$Y==0, j])))
       }))
       }
+      ttest_fdr$time[i] <- Sys.time() - backthen
       
 ##### Tweedie ####
+      backthen <- Sys.time()
       # step 1: make counts per bin
       counts <- cut(out$statistic, 30) %>%
         as_tibble_col("bins") %>%
@@ -253,25 +240,28 @@ run_experiment <- function(n, p, sig_p, d, nsims){
                 mean(simdat$X[simdat$Y==1, j] < simdat$X[simdat$Y==0, j])))
         }))
       }
+      ttest_tweedie$time[i] <- Sys.time() - backthen
       
 ##### Boruta #####
-      res_boruta <- Boruta(x=simdat$X,
-                           y=simdat$Y,
-                           num.trees = 2000, pValue = 0.05)
+      backthen <- Sys.time()
+      res_boruta <- Boruta(x=X_train,
+                           y=Y_train,
+                           num.trees = 500, pValue = 0.05)
 
       boruta$detections[i] <- list(which(res_boruta$finalDecision == "Confirmed"))
       
-      if (length(boruta$detections[i] %>% unlist())==0) {
+      if (length(boruta$detections[i] %>% unlist()) == 0 | length(boruta$detections[i] %>% unlist()) == 1) {
         boruta$perf_test[i] <- NA
         boruta$perf_pop[i] <- NA
       } else {
-        rf_mod <- randomForest(X_train[,unlist(boruta$detections[i])], factor(Y_train), ntree = 2000)
+        rf_mod <- randomForest(x = X_train[,unlist(boruta$detections[i])], y = factor(Y_train), ntree = 500)
         prediction_rf <- prediction(as.numeric(predict(rf_mod, newdata = X_test[,unlist(boruta$detections[i])])), labels = Y_test)
         boruta$perf_test[i] <- performance(prediction_rf, "auc")@y.values[[1]]
         
-        prediction_rf <- prediction(as.numeric(predict(rf_mod, newdata = pop$X[,unlist(boruta$detections[i])])), labels = pop$Y)
-        boruta$perf_pop[i] <- performance(prediction_rf, "auc")@y.values[[1]]
+      #  prediction_rf <- prediction(as.numeric(predict(rf_mod, newdata = pop$X[,unlist(boruta$detections[i])])), labels = pop$Y)
+      #  boruta$perf_pop[i] <- performance(prediction_rf, "auc")@y.values[[1]]
       }
+      boruta$time[i] <- Sys.time() - backthen
       
 
 ##### RF RFE ####
@@ -279,6 +269,7 @@ run_experiment <- function(n, p, sig_p, d, nsims){
 
       
 ##### SVM RFE ####
+      backthen <- Sys.time()
       # source("SVM-RFE-master/msvmRFE.R")
       svm_rfe <- svmRFE(cbind(Y_train, X_train), k = 5, halve.above = 250)
       
@@ -290,10 +281,10 @@ run_experiment <- function(n, p, sig_p, d, nsims){
       prediction_svm <- prediction(as.numeric(predict(svm_mod, newdata = X_test[,unlist(svm_results$detections[i])])), labels = factor(Y_test))
       svm_results$perf_test[i] <- performance(prediction_svm, "auc")@y.values[[1]]
       
-      svm_mod <- svm(X_train[, unlist(svm_results$detections[i])], factor(Y_train), kernel="linear", cost=10)
-      prediction_svm <- prediction(as.numeric(predict(svm_mod, newdata = pop$X[,unlist(svm_results$detections[i])])), labels = factor(pop$Y))
-      svm_results$perf_pop[i] <- performance(prediction_svm, "auc")@y.values[[1]]
-        
+     # svm_mod <- svm(X_train[, unlist(svm_results$detections[i])], factor(Y_train), kernel="linear", cost=10)
+    #  prediction_svm <- prediction(as.numeric(predict(svm_mod, newdata = pop$X[,unlist(svm_results$detections[i])])), labels = factor(pop$Y))
+    #  svm_results$perf_pop[i] <- performance(prediction_svm, "auc")@y.values[[1]]
+      svm_results$time[i] <- Sys.time() - backthen  
       
       setTxtProgressBar(pb, i)
     }

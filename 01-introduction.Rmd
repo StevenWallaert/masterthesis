@@ -6,28 +6,119 @@ output:
   bookdown::pdf_document2:
 ---
 
-```{r setup-intro, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup-intro, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("tidyverse")
 ```
 
 # Introduction
 
-Artificial intelligence (AI) and machine learning (ML) techniques are gaining popularity because of the successes booked by the application of these techniques in the last decades (e.g. **EXAMPLES HERE**). Scientists from various fields believe in the power of these methods and thus want to apply them to their own fields of study, carrying high hopes this will result in more discoveries in less time. AI and ML are increasingly effective not only because of the continuing development of new and better algorithms but mainly because of advances in compute power and the ever increasing amounts of data that can be fed into these machine learning models (**citation**). 
-Indeed, a recent study showed empirically that model specification gets less important as training sets take on extreme proportions, suggesting that *"the scientific community should perhaps focus more on data curation than on algorithm development"*(**citation, see hands on machine learning**) . However, even though high-throughput technologies such as **single cell sequencing** or **EXAMPLE** deliver huge amounts of information, knowledge extraction from these information sources still remains a difficult task. The data these technologies produce are typically high dimensional, i.e. data where the number of features exceeds the number of instances. This is often denoted as p >> n (where p is the number of independent variables or features and n is the number of samples or instances). 
+Artificial intelligence (AI) and machine learning (ML) are gaining popularity because of the successes booked by the application of these techniques in the last decades. Scientists from various fields believe in the power of these methods and thus want to apply those methods to their own problems in their respective fields. In doing so, they carry high hopes this will eventually result in more discoveries in less time. 
 
-## Approaches to cope with these challenges
-
-### Cross validation
-
-### Leave one out cross validation
-
-### Two stage cross validation
-
-https://doi.org/10.1530/JOE-18-0117:
- Two-stage cross-validation procedure: Each outer loop starts with splitting off the validation data from the remaining data that are further divided in a training set and a test set at each start of a training period. The training set is used to build a RF exploiting all features. Predictions are made on the test set and feature importance is measured as the Gini index. Training is repeated on different splits of the data and average importance (Imp.) for all features is computed. Afterward, a new RF restricted to the top i features (those with the highest mean Gini index) is build. It is trained on the combination of training and test data and employed to classify the validation data. Variable importance after each run is weighted by the achieved predictive performance using the area under the receiver-operating characteristic curve. 
+The left-hand panel of figure \@ref(fig:wos) shows the number of publications that are selected from the Web of Science Core Collection via a search with the search term 'machine learning', per year from 1997 to 2021 (the current year, 2021, being incomplete). The right panel of figure \@ref(fig:wos) shows the same statistics for the more general search term 'statistics'. From these graphs we can see that although the absolute numbers are less for machine learning than for statistics, the number of publications that mention machine learning are growing more rapidly. The right-hand panel demonstrates that rise in number of research articles that mention machine learning cannot solely be explained by the growth of the number of published research articles in general.
 
 
-## Which models to evaluate?
+```{r}
+caption <- "\\textit{Left panel: Number of publications selected from the Web of Science Core Collection with the search term 'machine learning', per year. Right panel: Number of publications selected from the Web of Science Core Collection with the search term 'statistics', per year. Searches were carried out on 08/14/2021. Note that the year 2021 is incomplete.}"
+```
 
-DOI:10.1038/s41598-018-27031-x
-The SVM algorithm was selected for machine learning classification, which has gained great success in analyzing gene expression data and handling noisy data in omics studies4,28–31
+
+
+```{r wos, fig.cap=caption, fig.show="hold", warning=FALSE, message=FALSE, out.width="49%", fig.align='center'}
+wos <- read_tsv("wos-ml.txt")
+wos %>%
+  mutate(`Publication Years` = as.numeric(`Publication Years`)) %>%
+  mutate(term = "Machine Learning") %>%
+  ggplot(aes(`Publication Years`, `Record Count`)) +
+  geom_col() +
+  theme_bw() +
+  facet_wrap("term") +
+  scale_y_continuous(labels = scales::comma_format())
+
+wos <- read_tsv("wos-stats.txt")
+wos %>%
+    mutate(`Publication Years` = as.numeric(`Publication Years`)) %>%
+  mutate(term = "Statistics") %>%
+  ggplot(aes(`Publication Years`, `Record Count`)) +
+  geom_col() +
+  theme_bw() +
+  facet_wrap("term") +
+  scale_y_continuous(labels = scales::comma_format())
+```
+
+We have showed that AI and ML are increasingly popular within research. AI and ML are also increasingly effective. This is not only because of the continuing development of new and better algorithms, but also because of advances in computing power and the ever increasing amounts of data that can be fed into these machine learning models. Indeed, a recent study showed empirically that model selection gets less important as training sets take on extreme proportions, suggesting that *"[...] the scientific community should perhaps focus more on data curation than on algorithm development"* [@unreasonable_effectiveness], [very_large_corpora], [@hands_on_ml]. 
+
+We are now in the era of 'big data', where the amount of data that are created is unimaginably high. However, while it is true that for example high-throughput technologies such as **single cell sequencing** produce huge amounts of data, knowledge extraction from these data sources still remains a difficult task. Why that is has to do with what is called the curse of dimensionality which is discussed in the following subsection.
+
+
+
+## The curse of dimensionality
+
+In this thesis we want to focus on the analysis of data that are used for biomarker discovery within pre-clinical pharmaceutical research. In this field, the researcher is typically interested in finding results that ultimately will allow for quick and cost-effective identification or prediction of clinically relevant outcomes. Examples of such outcomes are the presence of a disease, the acceptance or rejection of a transplanted organ, the presence of severe side effects, etcetera. In this thesis we will focus on binary classification problems.
+
+Biomarker candidates are typically found in 'omics' data. This could be genomic, transcriptomic, proteomic etc. data or even a combination. The datasets in these settings are typically (ultra) high dimensional, i.e. data where the number of features far exceeds the number of instances. This is often denoted as p >> n where p is the number of features and n is the number of samples. In the case of biomarker discovery research the dimensionality of datasets are typically in the range of thousands to ten thousands. 
+
+This high dimensionality introduces serious challenges for the analyst who wants to extract knowledge from these datasets. These challenges are often referred to as the *curse of dimensionality*. The curse of dimensionality is called this way because there are a number problems that arise when the dimensionality of a dataset increases. More so, these problems get worse very quickly with further increasing dimensionality. 
+
+For many people, this could be counterintuitive as it apparently goes against what people remember from their statistics classes, that is: the adage that more data is better. The confusion could come from the faulty belief that 'more dimensions' means the same as 'more information'. While it is true that there are more entries in a 100-dimensional dataset than in a 10-dimensional dataset, for a constant number of instances there are, however, an equal amount of data points in both datasets. The reason this causes problems has to do with the geometry of high dimensional spaces. Two important reasons are briefly discussed below. This discussion is not meant to be exhaustive.
+
+Firstly, as the dimensionality increases, the volume of the data-space increases exponentially. This means, with the same number of samples, an increase in dimensions leads to a sparser populated data-space compared to lower dimensions. The sampling density is proportional to $n^{1/p}$, so one needs $n^p$ samples in p-dimensional space in order to have the same sampling density as in one-dimensional space [@ESL]. This is a problem because in realistic settings where the cost of biological samples is very high, one cannot gather much more data than 10 to 50, maybe at most 100 samples. Contrasting this number with the number of features (often thousands or more) shows that the data-space is immensely sparse populated. Lower sampling density will then result in higher variance of estimates and thus in decreased performance.
+
+A second property of high dimensional space that is related to decreased performance of statistical methods is the fact that in high dimensional space most of the data-points are rather 'extreme' in one way or another. @ESL showed that the median distance from the origin to each of 500 uniformly distributed data-points in 10-dimensional unit space is more than halfway. They conclude that more than half of the points are closer to the boundary than to any other data point. This is a problem because prediction is much more difficult near the edges of the training space because that relies more on extrapolation rather than interpolation.
+
+Now it is clear there are challenges with high dimensional data, we now shift our attention to different methods to analyze these kinds of data.
+
+## Methods for biomarker discovery with high dimensional data
+
+In this thesis we want to compare 5 different statistical methods for the analysis of omics data in biomarker discovery. The selection of these methods was partially based on what is actually used in research departments of pharmaceutical companies (FDR, LASSO), partially on theoretical properties (Tweedie), and partially on a brief scan of the literature (Boruta, SVMRFE).
+
+
+### T-tests with false discovery rate control {#intro-FDR}
+
+The Welch t-test is a relatively simple method that is used to find out if 2 groups have different means at the population level. In the case of biomarker discovery one t-test for every feature is performed. Because of the vast amount of features in these kinds of datasets, this strategy without any adjustment is problematic. Typically a researcher wants to control the type-I error rate at a certain level (say 0.05). While Welch's t-test controls the type-I error well at the level of the individual test, the type-I error rate inflates when multiple tests are performed within one study at the level of the study which is more of interest. This well known phenomenon is known as the multiple testing problem. Apart from the inflation at the 'family' level, there is also the practical problem of having on average 500 false positive results out of 10,000 comparisons (when the null hypothesis holds for every comparison).
+
+A lot of strategies to cope with this problem have been proposed, of which Bonferroni correction is a well known example. Due to its very conservativeness that method is less suited for large scale hypothesis testing. Most often one choses not to control the family wise error rate but the false discovery rate (FDR) instead, and use the method of @BH1995. There are other FDR methods but we will focus on @BH1995.
+
+This method is based on the knowledge that p-values that come from null-comparisons are uniformly distributed and that the distribution of p-values that come from true differences are skewed with a mode close to 0. This knowledge makes it possible to adjust the p-values so that only 5% of the discoveries are expected to be false.
+
+An example of a study that use this method is @fdr_example_1.
+
+
+### T-tests with emperical Bayes based correction using Tweedie's formula {#intro-Tweedie}
+
+Selection bias is the phenomenon of overestimating population parameters based on extreme observations. This phenomenon is also known as regression to the mean. If one would throw many dice, we would expect the mean number of pips to be around 3.5. If one would then rethrow those dice that resulted a 6, the mean would again expected to be 3.5. This is an example of regression to the mean. The mean of the selected dice (6) regresses back to the overall mean (3.5). Expecting a higher mean would be an example of selection bias. 
+
+@efron2011 describes Tweedie's formula as a means to deal with this selection bias. Tweedie's formula was introduced in @robbins1956. It assumes that observations z have a true mean $\mu$, come from a distribution $N(\mu,\sigma^2)$ and that every $\mu$ has an unknown prior distribution $g(\mu)$. The formula is $E\{\mu|z\} = z + \sigma^2l'(z)$ and an estimate $\hat{\mu}$ can be obtained by applying following estimator: $z + \sigma^2\hat{l'}(z)$
+
+where $l'(z)$ is the first derivative of the marginal log-density of z, evaluated at z. @efron2011 points out that the formula is practical because of the fact that one only needs an estimate of the marginal (log-) density of z, and no estimate of the prior. @efron2011 suggests estimating the log-density by applying Lindsey's method. Lindsey's method is described in @efron2008 and comes down to fitting a Jth degree polynomial poisson regression to the counts of the observations z in a number of bins. In other words, Lindsey's method tries to fit a Jth degree polynomial to a histogram. Because the Jth degree polynomial is of form $f(z) = exp\{\sum^J_{j=0}\beta_jz^j\}$, it is convenient to take the logarithm and calculate the derivative from there [@efron2011].
+
+@efron2011 shows there is a connection between Tweedie's formula and the FDR method of @BH1995 and the local false discovery rate.
+
+Because of the selection-bias eliminating characteristics of Tweedie's formula it is interesting to see how it performs next to more popular methods such as FDR control and LASSO.
+
+To our knowledge no implementation of the above is available in the form of R-code so one aim of this thesis is to implement this ourselves.
+
+
+### L1-penalized logistic regression {#intro-LASSO}
+
+Logistic regression is a commonly used method to model the conditional probability of an observation belonging to one group (vs. an other group), given the values of the independent variables for that observation. That model and its probability as output is then often used to make predictions on the group status of new observations.
+
+The benefits of regularization are well known and include among others protection against overfitting which is especially of importance in high dimensional settings. Different kinds of regularization are known among which L1-penalization or LASSO is a popular choice. LASSO, introduced in @LASSO, adds an L1-norm penalty term to the loss function (which is log loss for logistic regression) which penalizes large values for the coefficients and effectively shrinks them towards 0. Note that the intercept is kept out of this term and thus does not contribute to the penalization. A penalization parameter $\lambda$ is introduced to allow control of the amount of penalization. This parameter can vary from 0 (which results in no regularization) to infinity (which results in a model with only an intercept) and can be chosen through cross validation.
+
+The extra benefit of the LASSO compared to for example L2-norm penalization is that it not only shrinks coefficients towards 0, it also sets some coefficients at exactly 0. As a result, LASSO usually results in a more parsimonious model as it 'selects' only those features that are deemed necessary. For this reason, this method is attractive for use in biomarker discovery.
+
+
+### Boruta {#intro-Boruta}
+
+Boruta [@Boruta] is a random forest based feature selection method. Random forest [@RF] is a method in which an ensemble of decision trees, in which each tree is built on a bootstrap sample of the original dataset and in which at each branch only a random subset of the variables are considered. In each ensemble, a fixed number of random trees are built, hence 'random forest'. A property of the random forest algorithm is that it introduces repeated randomness to mitigate the fact that a single decision tree is a high variance method.
+
+The Boruta method works as follows. For each feature in the dataset a 'shadow' feature is created. These shadow features are copies of the original features that are shuffled across samples. Once the shadow features are added to the dataset, a random forest is fitted. The variable importance of every feature is then evaluated against the mean shadow feature importance. This process is then repeated until all features are either categorized important or unimportant or until a certain number of runs is reached.
+
+
+
+### Support vector machine recursive feature elimination {#intro-SVMRFE}
+
+Support vector machine recursive feature elimination (SVMRFE) is method that consists of iteratively fitting a support vector machine model to correctly classify the subjects. At the end of each iteration the variables with the lowest variable importance are discarded from the feature pool before a new iteration begins. 
+
+Support vector machines are a family of models that, for classification, try to find a maximally separating hyperplane between two classes in the data space. An other way to look at support vector machines is that they minimize hinge loss. To avoid severe overfitting, a form of regularization is used (L2 penalization). In using support vector machines, one needs to choose a kernel. In the simulation study we used a linear kernel.
+

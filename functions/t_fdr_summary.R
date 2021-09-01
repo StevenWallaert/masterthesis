@@ -11,12 +11,13 @@ t_fdr_summary <- function(results_of_experiment){
     mutate(detections = ifelse(is.na(perf_test), NA, list(detections))) %>%
     unnest(detections) %>%
     rowwise() %>%
-    mutate(detection = factor(detections %in% sig_features,
-                              levels = c("TRUE", "FALSE"))) %>%
-    group_by(i) %>%
-    count(detection) %>%
+    # find true detections and convert to factor, this is to be able to ....
+    mutate(detection = factor(ifelse(is.na(detections), NA, detections %in% sig_features), levels = c("TRUE", "FALSE"))) %>%
+    group_by(i) %>%                                           # .... 'complete' later on. Otherwise this can be a hindrance
+    count(detection) %>%                                      # when no TRUE or FALSE detections are made in the entire run
     ungroup() %>%
-    complete(i, detection, fill = list(n=0)) 
+    complete(i, detection, fill = list(n=0)) %>%
+    drop_na()
   
   detection_summary <- true_false_detections %>%
     group_by(detection) %>% # for TRUE and FALSE detections:
@@ -48,11 +49,22 @@ t_fdr_summary <- function(results_of_experiment){
     complete(nullresult, fill = list(n=0)) %>%
     mutate(p = n/sum(n),
            p_se = sqrt(p * (1-p)/nsims)) %>% 
+    add_column(method = "fdr") %>%
+    rename(prop = p,
+           number = n,
+           prop_se = p_se) %>%
+    filter(nullresult == "TRUE")
+  
+  # times
+  time <- results_of_experiment %>%
+    summarise(mean_time = mean(time),
+              mean_time_se = sd(time)/sqrt(nsims)) %>%
     add_column(method = "fdr")
   
   list(raw_results = results_of_experiment,
        counts = true_false_detections,
        detections = detection_summary,
        performances = performance_summary,
-       nullresults = nulls)
+       nullresults = nulls,
+       time = time)
 }

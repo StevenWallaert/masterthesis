@@ -1,0 +1,9 @@
+FileName	Strain	Experiment
+nolrp_1.CEL	lrp-	1
+nolrp_2.CEL	lrp-	2
+nolrp_3.CEL	lrp-	3
+nolrp_4.CEL	lrp-	4
+wt_1.CEL	lrp+	1
+wt_2.CEL	lrp+	2
+wt_3.CEL	lrp+	3
+wt_4.CEL	lrp+	4

@@ -7,7 +7,556 @@ output:
 ---
 
 ```{r setup-results, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = F, message = F)
 ```
 
 # Results
+
+Ten scenarios are presented in this results section. An overview of the different scenarios can be seen in figure \@ref(fig:overviewscenarios).
+
+```{r overviewscenarios, out.width="75%", fig.align='center', fig.cap="\\textit{Overview of the different scenarios. Blue dots: Scenarios was performed with and without correlation structure. Red dots: Scenario was only performed without correlation structure.}"}
+library(tidyverse)
+
+overview <- tribble(
+  ~optimism, ~d, ~scenario, ~block,
+  "n = 50, sig_p = 10", 1.1, "A1", 1,
+  "n = 50, sig_p = 10", 0.7, "A2", 0,
+  "n = 50, sig_p = 10", 0.3, "A3", 0,
+  "n = 10, sig_p = 1", 0.9, "B1", 0,
+  "n = 10, sig_p = 1", 1.81, "B2", 0,
+  "n = 30, sig_p = 3", 0.95, "C1", 0,
+  "n = 30, sig_p = 3", 1.3, "C2", 1
+)
+
+overview %>%
+  mutate(optimism = factor(optimism, levels = c("n = 10, sig_p = 1", "n = 30, sig_p = 3", "n = 50, sig_p = 10"))) %>%
+  mutate(block = factor(block)) %>%
+  ggplot(aes(x = d, y = optimism)) +
+  geom_point(aes(color = block), show.legend = F) +
+  geom_text(aes(label = scenario), nudge_x = 0.075) +
+  lims(x = c(0,2)) +
+  labs(x = "effect size per feature", y="") +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1")
+```
+
+
+
+## Scenarios A - Optimistic
+
+All scenarios ‘A’ are ‘optimistic’ scenarios in that they are scenarios with relatively many samples (50) and relatively many significant features (10) and no correlations between features. Within this optimistic setting, 3 different effect sizes are considered. 
+
+
+### Scenario A1
+
+The first effect size considered is relatively large (d = 1.1, or AUC = 0.78), yet not overly large so that all methods would perform equally well. The results can be seen in figure \@ref(fig:A1).
+
+In terms of mean number of false discoveries SVM performs the worst and shows a different behavior than most other methods with respect to growing number of features p. SVM shows a linear increase of mean number of false discoveries with growing number of features, on a logarithmic scale, whereas LASSO, Tweedie, and FDR stay relatively stable across number of features, or even show a decrease (FDR). Boruta, like SVM, shows a linear increase in mean number of false discoveries with growing p, though less pronounced. The best performing method is FDR with mean number of false discoveries less than 1 throughout the entire range of p. 
+
+In terms of chance of discoveries we can more or less draw the same conclusions. That is, with regard to false discoveries FDR is the best performing method. SVM and Boruta are the worst performing methods. 
+
+With respect to null results we see that FDR and LASSO are more prone to delivering null results than the other methods.
+
+For the model based method we calculated the AUC of the models trained on the training set and tested on the test set. We can see that LASSO is consistently better than the other 2 methods.
+
+```{r}
+caption <- "\\textit{Upper left: Mean number of false and true discoveries for various numbers of features for every method. Upper right: Chance of at least one false and true discovery for various numbers of features for every method. Bottom left: Proportion of null results for various numbers of features for every method. Bottom right: Mean AUC of models built on selections by the model based methods for various numbers of features. 95\\% confidence intervals are shown. In the case an interval is lacking, this has to do with the log scale of some of the plots.}"
+```
+
+
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+
+files <- dir("output/")
+files_detect <- files[str_detect(files, "detect.csv$")]
+
+df_detect <- map_df(files_detect, function(x){
+  read_csv(paste0("output/", x))
+})
+
+files_perf <- files[str_detect(files, "perf.csv$")]
+df_perf <- map_df(files_perf, function(x){
+  read_csv(paste0("output/", x))
+})
+
+files_null <- files[str_detect(files, "null.csv$")]
+df_null <- map_df(files_null, function(x){
+  read_csv(paste0("output/", x))
+})
+
+files_time <- files[str_detect(files, "time.csv$")]
+df_time <- map_df(files_time, function(x){
+  read_csv(paste0("output/", x))
+})
+```
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 1.1
+nsims_ <- 100
+sig_p_ <- 10
+n_ <- 50
+correlated_ <- "no"
+
+plot_results1 <- function(d_, nsims_, sig_p_, n_, correlated_){
+  p_ <- 10000
+  if (correlated_ == "block"){
+    p_ <- 3000
+  }
+  df_detect %>%
+filter(d == d_, nsims == nsims_, sig_p == sig_p_, n == n_, correlated == correlated_) %>%
+ggplot(aes(x=p, y=mean_nr)) +
+geom_point(aes(color = method)) +
+geom_line(aes(group = method, color = method)) +
+geom_errorbar(aes(ymin=mean_nr-1.96*mean_se, ymax=mean_nr+1.96*mean_se, color = method), width = 0.1, alpha = 0.7) +
+scale_x_log10(breaks=c(100,300,1000,3000,1e4), labels = scales::comma_format() )  +
+facet_grid(detection~., scales="free", labeller = labeller(method = c("boruta" = "Boruta",
+                                                                           "fdr" = "t-test + FDR",
+                                                                           "lasso" = "Logistic Lasso",
+                                                                           "svm" = "SVMRFE top 1%",
+                                                                           "tweedie" = "t-test + Tweedie"))) +
+  labs(x = "Number of features",
+       y = "Mean number of discoveries",
+       title = paste0("Mean number of discoveries - n = ", n_, ", sig_p = ", sig_p_, ", d = ", d_, ", ", correlated_, " correlation", ", nsims = ", nsims_)) +
+  theme_bw() +
+  scale_y_log10(labels = scales::comma_format()) +
+  scale_color_brewer(palette = "Set1") +
+  geom_hline(yintercept = sig_p_, color = "grey", lty = "dashed") +
+  geom_label_repel(data = df_detect %>%
+  filter(d == d_, nsims == nsims_, n == n_, sig_p == sig_p_, correlated == correlated_, p == p_), aes(label = method, color = method), alpha = 0.75) +
+  theme(legend.position = "none",
+        title = element_text(size = 9, color = "#444444"))
+}
+
+plot_results2 <- function(d_, nsims_, sig_p_, n_, correlated_){
+  p_ <- 10000
+  if (correlated_ == "block"){
+    p_ <- 3000
+  }
+  df_detect %>%
+  filter(d == d_, nsims == nsims_, n == n_, correlated == correlated_, sig_p == sig_p_) %>%
+  ggplot(aes(x = p, y=a_detection, color = method, group = method)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin =a_detection - 1.96*a_det_se, ymax= a_detection + 1.96*a_det_se), width = 0.1) +
+  scale_x_log10(breaks=c(100,300,1000,3000,1e4), labels = scales::comma_format()) +
+  facet_grid(detection~., scales = "free") +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1") +
+  geom_label_repel(data = df_detect %>%
+  filter(d == d_, nsims == nsims_, n == n_, correlated == correlated_, p == p_, sig_p_ == sig_p_), aes(label = method), alpha = 0.75) +
+  labs(x = "Number of features",
+       y = "Chance of at least one discovery",
+       title = paste0("Chance of a discovery - n = ", n_, ", sig_p = ", sig_p_, ", d = ", d_, ", ", correlated_, " correlation", ", nsims = ", nsims_)) +
+   theme(legend.position = "none",
+        title = element_text(size = 9, color = "#444444"))
+}
+
+
+plot_results_null <- function(d_, nsims_, sig_p_, n_, correlated_){
+  p_ <- 10000
+  if (correlated_ == "block"){
+    p_ <- 3000
+  }
+df_null %>%
+  filter(d == d_, nsims == nsims_, n == n_, sig_p == sig_p_,  correlated == correlated_) %>%
+  ggplot(aes(x = p, y = prop, color = method, group = method)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=prop-1.96*prop_se, ymax=prop+1.96*prop_se), width = 0.1, alpha = 0.75) +
+  scale_x_log10(breaks = c(100,300,1000,3000,1e4), labels = scales::comma_format()) +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1") +
+  geom_label_repel(data = df_null %>%
+  filter(d == d_, nsims == nsims_, n == n_, correlated == correlated_, p == p_, sig_p == sig_p_), aes(label = method), alpha = 0.75) +
+  labs(x = "Number of features",
+       y = "Proportion null results",
+       title = paste0("Null results - n = ", n_, ", sig_p = ", sig_p_, ", d = ", d_, ", ", correlated_, " correlation", ", nsims = ", nsims_)) +
+   theme(legend.position = "none",
+        title = element_text(size = 9, color = "#444444"))  
+}
+
+plot_results_auc <- function(d_, nsims_, sig_p_, n_, correlated_){
+  p_ <- 10000
+  if (correlated_ == "block"){
+    p_ <- 3000
+  }
+  
+df_perf %>%
+  filter(! method %in% c("tweedie", "fdr")) %>%
+  filter(d == d_, nsims == nsims_, n == n_, sig_p == sig_p_,  correlated == correlated_) %>%
+  ggplot(aes(x=p, y=test_auc, color= method)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin=test_auc-1.96*test_auc_se, ymax=test_auc+1.96*test_auc_se), width = 0.1, alpha = 0.75) +
+  scale_x_log10(breaks = c(100,300,1000,3000,1e4), labels = scales::comma_format()) +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1") +
+  geom_label_repel(data = df_perf %>%
+                     filter(! method %in% c("tweedie", "fdr")) %>%
+                     filter(d == d_, nsims == nsims_, n == n_, correlated == correlated_, p == p_, sig_p == sig_p_), 
+                   aes(label = method), alpha = 0.75) +
+  labs(x = "Number of features",
+       y = "Mean AUC",
+       title = paste0("AUC - n = ", n_, ", sig_p = ", sig_p_, ", d = ", d_, ", ", correlated_, " correlation", ", nsims = ", nsims_)) +
+   theme(legend.position = "none",
+        title = element_text(size = 9, color = "#444444"))  
+
+}
+
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+
+```{r A1,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+
+### Scenario A2
+
+In this scenario the effect size is 0.7 (or AUC = 0.69) per feature. This scenario reflects slightly worse than optimistic conditions. The results can be seen in figure \@ref(fig:A2).
+
+In terms of mean number of false discoveries SVM again performs the worst, while FDR is again the best method. In between lies (in order from better to worse) Tweedie, LASSO and Boruta. In terms of mean number of true discoveries we see again SVM as the best method and FDR as the worst. It is worth noting that SVM is the only method with more than 1 mean true discovery in the p = 10,000 condition. This translates to the same pattern of chances of at least one discovery, which is close to 1 for SVM but under 0.5 for all other methods (for p = 10,000). Leaving SVM out of the discussion, Tweedie is consistently among the best methods throughout the entire range of p, with Boruta as a close contender.
+
+In terms of chance of false discoveries we see that SVM and Boruta are the worst methods and FDR  is the best method. 
+
+In terms of null results we can see that FDR is the worst method across all values for p. LASSO does a better job but still has a considerable amount of null results. Tweedie has yet a smaller amount of null results, except at p = 10,000 where the amount of null results is the same as for LASSO. Boruta and SVM delivered the least number of null results.
+
+In terms of discriminative ability the LASSO performs better than the other methods for low numbers of p (100, 300). For larger numbers of features the performances are very close with a slight advantage for SVM.
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 0.7
+nsims_ <- 100
+sig_p_ <- 10
+n_ <- 50
+correlated_ <- "no"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+```{r A2,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+### Scenario A3
+
+In this scenario the effect size is brought down to only 0.3 (or AUC = 0.58) per feature. This scenario reflects a boundary condition in which most methods fail to deliver any useful results. The results can be seen in figure \@ref(fig:A3).
+
+In terms of mean number of false discoveries we again see that SVM performs worst and FDR performs best. SVM is again the best performing method and FDR the worst in terms of mean number of true discoveries. It is interesting to see that under these poor conditions (small effect size) SVM shows a stable performance across all values for p. However, this performance is relatively poor (0.3, SE 0.05 at p = 10,000), indicating that this order of magnitude of effect size may represent a boundary.
+
+More or less the same pattern of results can be seen in the results regarding chances of at least one detection. That is SVM and Boruta are the least performing methods with regard to false discoveries, and FDR is the best performing method. With regard to chance of at least one discovery SVM is the best performing method while all the other methods perform equally bad. Again the caveat about the relativity of what ‘best performing’ means should be made. With a chance of at least one true discovery of 0.26 (SE 0.04) one could argue this is not a good performance at all.
+
+With respect to null results FDR is again the worst method with consistently values larger than 0.75 across the values for p. SVM and Boruta have the least null-results.
+
+For the model based method we calculated the AUC of the models trained on the training set and tested on the test set. We can see that for almost all values for p, no model has an AUC higher than 0.5. Although only marginally relevant, the only exception is Boruta at p = 300 with.
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 0.3
+nsims_ <- 100
+sig_p_ <- 10
+n_ <- 50
+correlated_ <- "no"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+```{r A3,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+## Scenarios B - Pessimistic
+
+All scenarios ‘B’ are ‘pessimistic’ scenarios in that they are scenarios with relatively few samples (10) and relatively few significant features (1) and no correlations between features. Within this pessimistic setting, 2 different effect sizes are considered. 
+
+
+### Scenario B1
+
+
+This scenario the effect size is relatively moderate (0.9, or AUC = 0.74) per feature. The results can be seen in figure \@ref(fig:B1).
+
+One major observation is that Boruta totally fails in this scenario, that is it never yields any discoveries regardless of their status (true or false). In a way it is the least performing method overall. However, in the current section we will make a further distinction and discuss the best and worst methods among the other 4 methods.
+
+With respect to mean number of false discoveries FDR is the best and SVM the least performing method. In terms of mean number of true discoveries Tweedie and SVM are the best performing methods. FDR and LASSO are virtually at the same level as Boruta (that is no true discoveries) for the entire range of p. Although Tweedie and SVM are the best performing methods, they don’t perform well with their mean below 0.1. This poor performance is reflected by the chance of true discovery that is below 0.1 for both methods, which means this scenario is indicative of a boundary condition.
+
+In terms of null results FDR delivers poor results with a proportion of null results above of 0.9. Tweedie and SVM show the best results in this regard.
+
+The model based methods perform poorly in terms of predictive ability with all AUC not different from 0.5.
+
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 0.9
+nsims_ <- 100
+sig_p_ <- 1
+n_ <- 10
+correlated_ <- "no"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+```{r B1,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+### Scenario B2
+
+This scenario the effect size is relatively large (1.81, or AUC = 0.9) per feature. This scenario tries to mimic a best case of worst case scenarios. The results can be seen in figure \@ref(fig:B2).
+
+Again we see that Boruta totally fails in this scenario. The same remark as in the previous scenario is made, that is that although Boruta is evidently the least performing method overall we will make a further distinction and discuss the best and worst methods among the other 4 methods.
+
+In terms of mean number of false discoveries FDR is again the best performing method and SVM the worst performing method. In terms of true discoveries Tweedie and SVM are the best performing methods while FDR and LASSO perform the least. The mean number of true discoveries for the best methods is small (less than 0.2).
+
+In terms of number of null results we see that, apart from Boruta, FDR is the method with the most null results while Tweedie and SVM are the methods with the least number of null results.
+
+The model based methods were evaluated on their predictive ability. However, all mean AUC values are not different from 0.5.
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 1.81
+nsims_ <- 100
+sig_p_ <- 1
+n_ <- 10
+correlated_ <- "no"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+
+```{r B2,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+## Scenarios C - In between
+
+Whereas the scenarios ‘A’ and ‘B’ were both extremes in the ‘optimistic-pessimistic-spectrum’, the scenarios ‘C’ are somewhat in between with 30 samples and 3 significant features. There are no correlations between features. Within this setting, 2 different effect sizes are considered.
+
+
+### Scenario C1
+
+This scenario has a relatively moderate effect size (0.95, or AUC = 0.75) per feature and reflects relatively poor conditions in this ‘in between’ setting. The results can be seen in figure \@ref(fig:C1).
+
+In terms of mean number of discoveries we see that SVM has the most false and true discoveries. FDR has the least both false and true discoveries. Tweedie and LASSO are able to keep the number of false discoveries relatively under control, that is more or less 3 throughout the range of p. Boruta has increasingly more false discoveries and ever less true discoveries with growing p. The same pattern is visible in terms of chances of at least one discovery. SVM is the only method that has a chance for at least one true discovery of more than 0.5 (0.57, SE 0.05) for p = 10,000. Tweedie comes in second at 0.28 (SE 0.04). These results indicate that this condition may be a boundary condition.
+
+In terms of null results FDR is the worst method and SVM and Boruta the best methods. Tweedie has only a moderate amount of null results when p is larger than 300.
+
+The AUC of the model based methods on the test set all behave in the same way. That is small values for AUC (around 0.6) for the smallest value for p and from there on decreasing with no distinction from 0.5 at p = 3,000 and more.
+
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 0.95
+nsims_ <- 100
+sig_p_ <- 3
+n_ <- 30
+correlated_ <- "no"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+```{r C1,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+
+### Scenario C2
+
+This scenario has a relatively larger effect size (1.3, or AUC = 0.82 per feature) and reflects somewhat better conditions than in scenario C1. The results can be seen in figure \@ref(fig:C2).
+
+In terms of mean number of discoveries wee see that SVM has the most false and true discoveries. FDR has the lowest mean number of false and true discoveries. As the second best method, Tweedie has a mean number of true discoveries of 0.94 (SE 0.09) for p = 10,000. In terms of chance of at least one false discovery, Boruta and SVM are the worst performing methods while FDR is the best method. In terms of chance of at least one true discovery FDR and LASSO are the worst performing methods and Tweedie and SVM the best performing methods.
+
+In terms of null results FDR is again the worst performing method while SVM, Boruta and Tweedie are the best performing methods.
+
+The AUC measured on the test set for the model based methods was highest for LASSO, except at p =10,000 where all methods perform equally poor.
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 1.3
+nsims_ <- 100
+sig_p_ <- 3
+n_ <- 30
+correlated_ <- "no"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+
+```{r C2,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+### Scenario D
+
+This scenario is there to be able to evaluate the methods when there are no significant features. The number of samples is set at 20. The results can be seen in figure \@ref(fig:D). 
+
+In terms of number of false discoveries FDR is the best method throughout the entire range of p. LASSO finds on average between 1 and 3 false discoveries and is stable across p. Tweedie and Boruta are close to one another with on average between 3 and 10 false discoveries. Both methods perform wors with increasing number of features. SVM always picks the top 1%, so there will be 1% of p false discoveries. More or less the same conclusions can be drawn from the chances of at least one false discovery plot.
+
+
+```{r D, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F, fig.cap="\\textit{Left: Mean number of false discoveries for various numbers of features for every method. Right: Chance of at least one false discovery for various numbers of features for every method.}"}
+d_ <- 0
+nsims_ <- 100
+sig_p_ <- 0
+n_ <- 20
+correlated_ <- "no"
+
+  df_detect %>%
+filter(d == d_, nsims == nsims_, sig_p == sig_p_, n == n_, correlated == correlated_, detection == FALSE) %>%
+ggplot(aes(x=p, y=mean_nr)) +
+geom_point(aes(color = method)) +
+geom_line(aes(group = method, color = method)) +
+geom_errorbar(aes(ymin=mean_nr-1.96*mean_se, ymax=mean_nr+1.96*mean_se, color = method), width = 0.1, alpha = 0.7) +
+scale_x_log10(breaks=c(100,300,1000,3000,1e4), labels = scales::comma_format() )  +
+  labs(x = "Number of features",
+       y = "Mean number of false discoveries",
+       title = paste0("Mean number of false discoveries - n = ", n_, ", sig_p = ", sig_p_, ", d = ", d_, ", ", correlated_, " correlation", ", nsims = ", nsims_)) +
+  theme_bw() +
+  scale_y_log10(labels = scales::comma_format()) +
+  scale_color_brewer(palette = "Set1") +
+  geom_hline(yintercept = sig_p_, color = "grey", lty = "dashed") +
+  geom_label_repel(data = df_detect %>%
+  filter(d == d_, nsims == nsims_, n == n_, sig_p == sig_p_, correlated == correlated_, p == 1e4, detection == FALSE), aes(label = method, color = method), alpha = 0.75) +
+  theme(legend.position = "none",
+        title = element_text(size = 9, color = "#444444"))
+
+
+  df_detect %>%
+  filter(d == d_, nsims == nsims_, n == n_, correlated == correlated_, sig_p == sig_p_, detection == FALSE) %>%
+  ggplot(aes(x = p, y=a_detection, color = method, group = method)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin =a_detection - 1.96*a_det_se, ymax= a_detection + 1.96*a_det_se), width = 0.1) +
+  scale_x_log10(breaks=c(100,300,1000,3000,1e4), labels = scales::comma_format()) +
+  theme_bw() +
+  scale_color_brewer(palette = "Set1") +
+  geom_label_repel(data = df_detect %>%
+  filter(d == d_, nsims == nsims_, n == n_, correlated == correlated_, p == 1e4, sig_p_ == sig_p_, detection == FALSE), aes(label = method), alpha = 0.75) +
+  labs(x = "Number of features",
+       y = "Chance of at least one false discovery",
+       title = paste0("Chance of at least one false discovery - n = ", n_, ", sig_p = ", sig_p_, ", d = ", d_, ", ", correlated_, " correlation", ", nsims = ", nsims_)) +
+   theme(legend.position = "none",
+        title = element_text(size = 9, color = "#444444"))
+```
+
+
+
+## Block correlation structure scenarios
+
+The most ‘forgiving’ scenarios of scenarios A and C are selected and rerun with a block correlation structure in the data generating mechanism as described in the methods section. Only the most optimistic scenarios are selected because of the fact that we expect the performance to drop. In that way it is not very informative to try a condition with already very poor performances. This is also the reason why no scenario from the B scenarios is selected.
+
+In these scenarios, data with at most 3,000 features were simulated because our system failed at p = 10,000.
+
+### Scenario A1 with block correlation structure
+
+The results can be seen in figure \@ref(fig:blockA1).
+
+In terms of mean number of false discoveries we see that Tweedie performs poorly at p = 100 and performs gradually better with growing number of features. At 3,000 features Tweedie is the second best performing method. LASSO performs more or less at the same level throughout the range of p. Boruta is among the best performing methods at p = 100 but gradually becomes worse and ends with the second to highest mean number of false discoveries. SVM also starts off among the best performing methods at p = 100 and gradually worsens and ends as poorest performing method. FDR is the best performing method throughout the range of p.
+
+In terms of mean number of true discoveries we see that Tweedie is consistently the best or among the best performing methods. The decline in performance of Tweedie with growing p seems to be the smallest (apart from SVM, which has an increasing performance), on the log scale. SVM is among the least performing methods with smaller numbers of features and gets better at p = 1,000 and is at the level of Tweedie at p = 3,000. FDR and Boruta show a similar pattern with Boruta showing a poorer performance than FDR. LASSO doesn't do well in these conditions. It consistently drops in performance throughout the range of p while it started already at the second to last place at p = 100.
+
+In terms of chances of at least one false discovery we see more or less the same pattern as discussed above, with the exception that LASSO seems a bit more conservative than Tweedie, however, the differences are not always meaningful (e.g. at p = 3,000 there is no difference). In terms of chances of at least one true discovery we see more or less the same pattern, except for FDR which performs worse than one would expect on the basis of the mean numbers of true discoveries and performs now worse than Boruta.
+
+In terms of null results FDR is the worst performing method while Tweedie, SVM, and Boruta are the best performing methods. Of these, Tweedie has the most null results at higher numbers of features. 
+
+In terms of mean AUC we see that all models perform better than 0.5 for every value for p. All values are close to each other with the only exception being p = 100, where LASSO performs better than the 2 other methods.
+
+
+
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 1.1
+nsims_ <- 100
+sig_p_ <- 10
+n_ <- 50
+correlated_ <- "block"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+
+```{r blockA1,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+
+### Scenario C2 with block correlation structure
+
+The results can be seen in figure \@ref(fig:blockC2).
+
+In terms of mean number of false discoveries we see that SVM performs better than most methods at p = 100 and 300 and performs the poorest at p = 1,000 and p = 3,000. Boruta shows the same pattern as SVM, although much less pronounced. LASSO and Tweedie perform consistently at around 3 mean false discoveries, while FDR performs the best with very few discoveries on average (aroudn 0.3 to 0.1).
+
+In terms of mean number of true discoveries we see that Tweedie is the best or among the best performing methods, except at p = 3,000 where SVM is slightly better. SVM performs among the poorest performing methods for relatively small values for p (100 and 300) and is among the best methods at higher values for p (1,000 and 3,000). After Tweedie, the best performing methods in order are Boruta, FDR, while LASSO comes in last.
+
+In terms of chances of true/false discoveries we see more or less the same patterns. We see again that LASSO is a bit more conservative than Tweedie. In terms of true discveries we see that FDR and LASSO switched places compared to mean number of true disoveries.
+
+In terms of null results FDR is the worst performing method while Tweedie, SVM, and Boruta are again the best performing methods. Of these, Tweedie has again the most null results at higher numbers of features. 
+
+In terms of mean AUC we see the same pattern of resutls as in A2 block correlated. All models perform better than 0.5 for every value for p. All values are close to each other with the only exception being p = 100, where LASSO performs better than the 2 other methods.
+
+
+
+```{r, out.width="49%", fig.align='center', fig.height=7, fig.show="hold", message=F, warning=F}
+d_ <- 1.3
+nsims_ <- 100
+sig_p_ <- 3
+n_ <- 30
+correlated_ <- "block"
+
+plot_results1(d_, nsims_, sig_p_, n_, correlated_)
+plot_results2(d_, nsims_, sig_p_, n_, correlated_)
+
+```
+
+
+```{r blockC2,  out.width="49%", fig.align='center', fig.height=3.5, fig.show="hold", message=F, warning=F, fig.cap=caption}
+plot_results_null(d_, nsims_, sig_p_, n_, correlated_)
+plot_results_auc(d_, nsims_, sig_p_, n_, correlated_)
+```
+
+## Computation time
+
+Although this not of primary concern for method users, it can be interesting too see how well methods scale with growing number of p with regard to computation time. The results can be seen in figure \@ref(fig:timeresults).
+
+All computation times are relatively short which adds to the lack of concern regarding computation time from the perspective of method users. Though, we can see that Boruta seems to have difficulties with scaling. One could expect that if the number of samples and number of features keep increasing, the computation time might become an issue. Tweedie, on the other hand, seems to scale very well with growing number of features.
+
+There is one additional result that draws the attention and that is that of SVM at p = 1,000 which is slower than at p = 3,000. The reason of this has to do with the halving of the features up to the point at which there are 250 or less features in the feature pool. At a starting point of 3,000 one ends up at 188 before the procedure starts to eliminate one feature at a time. At a starting point of 1,000 this is 250, which is higher and that is why the analysis takes longer on average.
+
+```{r}
+caption <- "\\textit{Boxplots of computation time for every method and for every number of features, across all simulations}"
+```
+
+
+```{r timeresults, out.width="100%", fig.align='center', fig.height=3.5, fig.show='hold', message=F, warning=F, fig.cap=caption}
+df_time %>%
+  filter(nsims == 100) %>%
+  ggplot(aes(factor(p, levels = c("100", "300", "1000", "3000", "10000"),
+                    labels = c("1e2", "3e2", "1e3", "3e3", "1e4")), mean_time)) +
+  geom_boxplot() +
+  facet_grid(.~method, scales = "free") +
+  theme_bw() +
+  labs(x = "Number of features", y = "Mean computation time (seconds)") 
+```
+
+
+

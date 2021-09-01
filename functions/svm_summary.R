@@ -13,13 +13,13 @@ svm_summary <- function(results_of_experiment){
     mutate(detections = ifelse(is.na(perf_test), NA, list(detections))) %>% # fill empty detections
     unnest(detections) %>%
     rowwise() %>%
-    mutate(detection = factor(detections %in% sig_features,   # find true detections
-                              levels=c("TRUE", "FALSE"))) %>% # note that i convert to factor, this is to be able to
-    group_by(i) %>%                                           # 'complete' later on. Otherwise this can be a hindrance
-    count(detection) %>%                                      # when no TRUE or FALSE detections are made in the entire run
+    # find true detections and convert to factor, this is to be able to ....
+    mutate(detection = factor(ifelse(is.na(detections), NA, detections %in% sig_features), levels = c("TRUE", "FALSE"))) %>%
+    group_by(i) %>%                                           # .... 'complete' later on. Otherwise this can be a hindrance
+    count(detection) %>%                                      # when no TRUE or FALSE detections are made in the entire run                                     # when no TRUE or FALSE detections are made in the entire run
     ungroup() %>%
-    complete(i, detection, fill = list(n = 0)) # add explicit 0-counts where no detections are made
-  
+    complete(i, detection, fill = list(n = 0)) %>% # add explicit 0-counts where no detections are made
+    drop_na()
   
   
   # barplot - not used later on so it is commented out for now
@@ -75,11 +75,22 @@ svm_summary <- function(results_of_experiment){
     complete(nullresult, fill = list(n=0)) %>%
     mutate(p = n/sum(n),
            p_se = sqrt(p * (1-p)/nsims)) %>% 
+    add_column(method = "svm") %>%
+    rename(prop = p,
+           number = n,
+           prop_se = p_se) %>%
+    filter(nullresult == "TRUE")
+  
+  # times
+  time <- results_of_experiment %>%
+    summarise(mean_time = mean(time),
+              mean_time_se = sd(time)/sqrt(nsims)) %>%
     add_column(method = "svm")
   
   list(raw_results = results_of_experiment,
        counts = true_false_detections,
        detections = detection_summary,
        performances = performance_summary,
-       nullresults = nulls)
+       nullresults = nulls,
+       time = time)
 }

@@ -10,20 +10,14 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Abstract {-}
+# Summary {-}
 
 
-## Introduction
+As we currently reside in the era of big data, artificial intelligence and machine learning methods are on a rising tide. Interest in these methods are ever increasing since constraints in terms of computing power, storage capacity and connectivity are less of a concern. However, in certain settings, data gathering is still limited in sample size due to high costs and limited resources. More specifically, in early drug development research high throughput techniques are often used in small-sized experiments. The high dimensional data sets that are produced by these experiments often include tens of thousands of features and only 10 to 50 observations. Researchers in this field hope they can exploit the power of machine learning and AI to make more and better discoveries that would eventually lead to new and better drugs or diagnostic tests. Yet, since the main application of machine learning is in settings where data sets consist of thousands or even millions of observations and only a fraction of features, little is known about how these techniques empirically perform in such extreme situations. As such, it is unclear how these data sets in early drug discovery are best approached.
 
-As we currently reside in the era of big data, artificial intelligence and machine learning methods are on a rising tide. Interest in these methods are ever increasing since constrains in terms of computing power, storage capacity and connectivity are less of a concern. However, in certain technological settings data gathering is still limited in sample size due to high costs and limited resources. More specifically, in early drug development research high throughput techniques such as .... and .... are often used in small-sized experiments. The high dimensional data sets produced by these experiments often include tens of thousands of features and only 10 to 50 observations. Researchers in this field hope they can exploit the power of machine learning and AI to make more and better discoveries that would eventually lead to new and better drugs. Yet, since their main application is in situations where data sets consist of thousands or even millions of observations and only a fraction of features, little is known about how these ML techniques empirically perform. As such, it is unclear how these data sets in early drug discovery are best approached.
+To gain insight in the limitations of these methods we performed a simulation study wherein 5 methods (t-tests with FDR control (FDR), t-tests with an empirical Bayes based correction based on Tweedie's formula (Tweedie), LASSO logistic regression (LASSO), Boruta, and SVM-RFE (SVM)) were tested in various circumstances.
 
-## Objectives
+Overall, the results indicate that there certainly is 'no free lunch'. That is to say in many situations methods fail or perform poorly. However, some guidelines are presented. The approach of the analyst will depend on their intentions. FDR is a very conservative method that often fails to discover true features. SVM on the other hand often discovers many features but has the drawback of finding many false features. Tweedie often performs somewhere in between, which can be a good thing. If the aim is to build a good prediction model LASSO is often a better choice. 
 
-1. Gain insight in how researchers within this field analyzed these kinds of data in the recent years.
-2. Perform a simulation study comparing the most relevant methods in varying realistic conditions.
-3. Formulate clear data analysis guidelines
-4. Exemplify by means of a data analysis of real data
 
-## Methods
 
-In order to attain objective 1 a systematic review was planned and conducted following [@simulations_tutorial]
